@@ -100,6 +100,20 @@ export async function readDeviceParams(device: HIDDevice) {
 	]);
 	await delay(50);
 
+	// Read Advanced settings (Filter, Work Mode, Gain Mode, Mic Volume, Balance)
+	await sendPacketSavitech(device, [CMD_SAVI.READ, 17, CMD_SAVI.END]);
+	await delay(30);
+	await sendPacketSavitech(device, [CMD_SAVI.READ, 29, CMD_SAVI.END]);
+	await delay(30);
+	await sendPacketSavitech(device, [CMD_SAVI.READ, 25, CMD_SAVI.END]);
+	await delay(30);
+	await sendPacketSavitech(device, [CMD_SAVI.READ, 2, CMD_SAVI.END]);
+	await delay(30);
+	await sendPacketSavitech(device, [CMD_SAVI.READ, 22, 1, 0]); // channel 0
+	await delay(30);
+	await sendPacketSavitech(device, [CMD_SAVI.READ, 22, 1, 1]); // channel 1
+	await delay(30);
+
 	// Request all 10 bands
 	for (let i = 0; i < NUM_BANDS; i++) {
 		await sendPacketSavitech(device, [
@@ -113,6 +127,35 @@ export async function readDeviceParams(device: HIDDevice) {
 		await delay(40);
 	}
 	log("Configuration loaded.");
+}
+
+const balanceState = { left: 0, right: 0 };
+
+function updateBalanceState(channel: number, attenuation: number) {
+	if (channel === 0) {
+		balanceState.left = attenuation;
+	} else if (channel === 1) {
+		balanceState.right = attenuation;
+	}
+	
+	let balance = 0;
+	if (balanceState.left > 0) {
+		balance = balanceState.left; // Right shift (left channel attenuated)
+	} else if (balanceState.right > 0) {
+		balance = -balanceState.right; // Left shift (right channel attenuated)
+	}
+	
+	const sliderBalance = document.getElementById("sliderBalance") as HTMLInputElement;
+	const balanceVal = document.getElementById("balanceVal") as HTMLElement;
+	if (sliderBalance) sliderBalance.value = balance.toString();
+	
+	let text = "0 (Center)";
+	if (balance < 0) {
+		text = `L +${Math.abs(balance)}`;
+	} else if (balance > 0) {
+		text = `R +${balance}`;
+	}
+	if (balanceVal) balanceVal.innerText = text;
 }
 
 /**
@@ -136,6 +179,69 @@ export function setupListener(device: HIDDevice) {
 		} else if (cmd === CMD_SAVI.GAIN) {
 			const gain = new Int8Array([data[4]])[0];
 			setGlobalGain(gain);
+		} else if (cmd === 17) { // Filter
+			const val = data[3];
+			const filters = ["FAST-LL", "FAST-PC", "Slow-LL", "Slow-PC", "NON-OS"];
+			const filter = filters[val - 1];
+			if (filter) {
+				const selFilterType = document.getElementById("selFilterType") as HTMLSelectElement;
+				const filterDescBox = document.getElementById("filterDescBox") as HTMLElement;
+				const filterTypeVal = document.getElementById("filterTypeVal") as HTMLElement;
+				const filterDescriptions = {
+					"FAST-LL": "<strong>FAST-LL (Low Latency):</strong> Minimizes pre-ringing (echo before notes) and provides the lowest latency. Warm, punchy, and thick sound. Best for gaming and videos.",
+					"FAST-PC": "<strong>FAST-PC (Phase Comp):</strong> Preserves phase linearity across the entire spectrum, removing phase distortion. Highly natural, clean, and balanced sound. Best for acoustic instruments.",
+					"Slow-LL": "<strong>Slow-LL (Low Latency):</strong> Combines low latency with a gentler high-frequency roll-off. Warm, relaxed, with a wider perceived soundstage. Ideal for jazz and vocals.",
+					"Slow-PC": "<strong>Slow-PC (Phase Comp):</strong> Combines phase linearity with a gentler high-frequency roll-off. Detailed, analytical, and monitor-like sound. Great for critical listening.",
+					"NON-OS": "<strong>NON-OS (Non-Oversampling):</strong> Bypasses digital interpolation entirely. Pure, raw, and analog-like sound signature with a slight high-frequency roll-off. Recommended for a vintage sound."
+				};
+				if (selFilterType) selFilterType.value = filter;
+				if (filterTypeVal) filterTypeVal.innerText = selFilterType.options[selFilterType.selectedIndex].text;
+				if (filterDescBox) filterDescBox.innerHTML = filterDescriptions[filter as keyof typeof filterDescriptions] || "";
+			}
+		} else if (cmd === 29) { // Amp Mode
+			const val = data[3];
+			const toggleAmpMode = document.getElementById("toggleAmpMode") as HTMLInputElement;
+			const ampLabelClassH = document.getElementById("ampLabelClassH") as HTMLElement;
+			const ampLabelClassAB = document.getElementById("ampLabelClassAB") as HTMLElement;
+			if (toggleAmpMode) {
+				const isClassH = (val === 0);
+				toggleAmpMode.checked = isClassH;
+				if (isClassH) {
+					ampLabelClassH?.classList.add("active");
+					ampLabelClassAB?.classList.remove("active");
+				} else {
+					ampLabelClassH?.classList.remove("active");
+					ampLabelClassAB?.classList.add("active");
+				}
+			}
+		} else if (cmd === 25) { // Gain Mode
+			const val = data[3];
+			const toggleGainMode = document.getElementById("toggleGainMode") as HTMLInputElement;
+			const gainLabelLow = document.getElementById("gainLabelLow") as HTMLElement;
+			const gainLabelHigh = document.getElementById("gainLabelHigh") as HTMLElement;
+			if (toggleGainMode) {
+				const isHigh = (val === 1);
+				toggleGainMode.checked = isHigh;
+				if (isHigh) {
+					gainLabelLow?.classList.remove("active");
+					gainLabelHigh?.classList.add("active");
+				} else {
+					gainLabelLow?.classList.add("active");
+					gainLabelHigh?.classList.remove("active");
+				}
+			}
+		} else if (cmd === 2) { // Mic Volume
+			let val = data[4];
+			if (val > 127) val = val - 256;
+			const sliderMicGain = document.getElementById("sliderMicGain") as HTMLInputElement;
+			const micGainVal = document.getElementById("micGainVal") as HTMLElement;
+			if (sliderMicGain) sliderMicGain.value = val.toString();
+			if (micGainVal) micGainVal.innerText = `${val} dB`;
+		} else if (cmd === 22) { // Balance
+			const channel = data[3];
+			const valByte = data[5];
+			const att = valByte > 0 ? 256 - valByte : 0;
+			updateBalanceState(channel, att);
 		} else if (cmd === CMD_SAVI.PEQ && data.byteLength >= 34) {
 			const idx = data[4];
 			if (idx < NUM_BANDS) {
