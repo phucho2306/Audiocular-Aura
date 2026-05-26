@@ -4,7 +4,6 @@ import {
 	CMD_SAVI,
 	DEFAULT_FREQS,
 	NUM_BANDS,
-	PACKET_SIZE,
 	REPORT_ID_DEFAULT,
 	REPORT_ID_FIIO,
 	VID_COMTRUE,
@@ -33,7 +32,7 @@ function getProtocol(device: HIDDevice) {
  * UNIVERSAL GLOBAL GAIN SETTER
  * Updates state and transmits over the wire
  */
-export async function setDeviceGlobalGain(gain: number) {
+export async function setDeviceGlobalGain(gain: number, skipBandSync = false) {
 	setGlobalGain(gain);
 	const device = getDevice();
 	if (!device) return;
@@ -46,13 +45,29 @@ export async function setDeviceGlobalGain(gain: number) {
 		await setGlobalGainMoondrop(device, gain);
 	} else {
 		// Savitech Default
+		const gVal = gain < 0 ? 256 + Math.round(gain) : Math.round(gain);
 		await sendPacketSavitech(device, [
 			CMD_SAVI.WRITE,
 			CMD_SAVI.GAIN,
 			0x02,
 			0x00,
-			gain,
+			gVal,
 		]);
+
+		if (!skipBandSync) {
+			await delay(20);
+			// Re-sync all bands so that byte 34 in all PEQ blocks is updated
+			const eqState = getEqState();
+			if (eqState) {
+				for (const band of eqState) {
+					await writeBand(device, band, "SAVITECH");
+					await delay(20);
+				}
+			}
+			// Send final commit packet
+			await sendPacketSavitech(device, [1, 10, 4, 0, 0, 255, 255]);
+			await refreshToFlash(device);
+		}
 	}
 }
 
@@ -64,9 +79,14 @@ export async function readDeviceParams(device: HIDDevice) {
 	if (!device) return;
 	log("Reading device configuration...");
 
-	// Read Version
+	// Read Version (Query and Ack Query sequence)
 	await sendPacketSavitech(device, [
 		CMD_SAVI.READ,
+		CMD_SAVI.VERSION,
+		CMD_SAVI.END,
+	]);
+	await delay(20);
+	await sendPacketSavitech(device, [
 		CMD_SAVI.VERSION,
 		CMD_SAVI.END,
 	]);
@@ -168,8 +188,8 @@ export async function syncToDevice() {
 	const protocol = getProtocol(device);
 	log(`Syncing via protocol: ${protocol}...`);
 
-	// 1. Write Global Preamp Gain
-	await setDeviceGlobalGain(getGlobalGainState());
+	// 1. Write Global Preamp Gain (skip band sync since we write them below)
+	await setDeviceGlobalGain(getGlobalGainState(), true);
 
 	// 2. Write all bands
 	for (const band of eqState) {
@@ -179,17 +199,8 @@ export async function syncToDevice() {
 
 	// 3. Commit / Temp Save (required by Savitech)
 	if (protocol === "SAVITECH") {
-		const currentGain = getGlobalGainState();
-		await sendPacketSavitech(device, [
-			CMD_SAVI.WRITE,
-			CMD_SAVI.TEMP,
-			0x04,
-			0x00,
-			currentGain,
-			0xff,
-			0xff,
-			CMD_SAVI.END,
-		]);
+		await sendPacketSavitech(device, [1, 10, 4, 0, 0, 255, 255]);
+		await refreshToFlash(device);
 	}
 
 	log("Sync Complete.");
@@ -266,22 +277,26 @@ async function writeBandSavitech(device: HIDDevice, band: Band, gain: number) {
 	const qBytes = toBytes(Math.round(band.q * 256), 2);
 	const gainBytes = toBytes(Math.round(gain * 256), 2);
 
+	let m = Math.round(getGlobalGainState());
+	if (m > 127) m = 127;
+	if (m < -128) m = -128;
+	if (m < 0) m = 256 + m;
+
 	const packet = [
-		CMD_SAVI.WRITE,
-		CMD_SAVI.PEQ,
-		0x18,
+		CMD_SAVI.WRITE, // 1
+		CMD_SAVI.PEQ,   // 9
+		0x18,           // 24 (4 + 20)
 		0x00,
 		band.index,
 		0x00,
 		0x00,
-		...bArr,
-		...freqBytes,
-		...qBytes,
-		...gainBytes,
-		typeMap[band.type as keyof typeof typeMap] || 2,
+		...bArr,        // 20 bytes
+		...freqBytes,   // 2 bytes
+		...qBytes,      // 2 bytes
+		...gainBytes,   // 2 bytes
+		typeMap[band.type as keyof typeof typeMap] || 2, // type code
+		m,              // global gain
 		0x00,
-		0x00,
-		CMD_SAVI.END,
 	];
 	await sendPacketSavitech(device, packet);
 }
@@ -412,12 +427,30 @@ async function setGlobalGainFiio(device: HIDDevice, gain: number) {
  * Send packet over WebHID using Savitech layout
  */
 async function sendPacketSavitech(device: HIDDevice, bytes: number[]) {
+	// If it's a read command (starts with 128 / 0x80) or version ack (starts with 12) or
+	// PEQ write command (starts with 1, 9), pad to exactly 36 bytes.
+	// Otherwise, send the exact array length.
+	let size = bytes.length;
+	if (bytes[0] === 128 || bytes[0] === 12 || (bytes[0] === 1 && bytes[1] === 9)) {
+		size = 36;
+	}
+	
+	const p = new Uint8Array(size);
+	for (let i = 0; i < bytes.length; i++) p[i] = bytes[i];
+	
 	try {
-		const p = new Uint8Array(PACKET_SIZE);
-		for (let i = 0; i < bytes.length; i++) p[i] = bytes[i];
 		await device.sendReport(REPORT_ID_DEFAULT, p);
 	} catch (err) {
-		log(`TX Error: ${(err as Error).message}`);
+		const errMsg = (err as Error).message || "";
+		if ((err as Error).name === "NotAllowedError" || errMsg.includes("NotAllowedError")) {
+			try {
+				await device.sendReport(0, p);
+				return;
+			} catch (retryErr) {
+				log(`TX Retry Error (ID=0): ${(retryErr as Error).message}`);
+			}
+		}
+		log(`TX Error: ${errMsg}`);
 	}
 }
 
@@ -506,39 +539,44 @@ export async function setDacFilter(device: HIDDevice, filterType: string) {
 	}
 	log(`Setting DAC Filter: ${filterType} (index ${r})`);
 	await sendPacketSavitech(device, [1, 17, 1, r]);
+	await refreshToFlash(device);
 }
 
 export async function setDacWorkMode(device: HIDDevice, isClassAB: boolean) {
 	const r = isClassAB ? 1 : 0;
 	log(`Setting Amp Mode: ${isClassAB ? "Class AB" : "Class H"}`);
 	await sendPacketSavitech(device, [1, 29, 1, r]);
+	await refreshToFlash(device);
 }
 
 export async function setDacOutputGain(device: HIDDevice, isHighGain: boolean) {
 	const r = isHighGain ? 1 : 0;
 	log(`Setting DAC Output Gain Mode: ${isHighGain ? "HIGH" : "LOW"}`);
 	await sendPacketSavitech(device, [1, 25, 1, r]);
+	await refreshToFlash(device);
 }
 
 export async function setDacBalance(device: HIDDevice, balance: number) {
 	log(`Setting DAC Balance: ${balance}`);
-	if (balance < 0) {
-		const t = Math.abs(balance);
-		const n = 256 - t;
+	const he = balance <= 0 ? Math.abs(balance) : 0;
+	const ne = balance > 0 ? balance : 0;
+	
+	if (he > 0) {
+		const n = -1 * he;
 		await sendPacketSavitech(device, [1, 22, 4, 1, 0, n, 0]);
 		await delay(20);
 		await sendPacketSavitech(device, [1, 22, 4, 0, 0, 0, 0]);
-	} else if (balance > 0) {
+	} else if (ne > 0) {
 		await sendPacketSavitech(device, [1, 22, 4, 1, 0, 0, 0]);
 		await delay(20);
-		const t = balance;
-		const n = 256 - t;
+		const n = -1 * ne;
 		await sendPacketSavitech(device, [1, 22, 4, 0, 0, n, 0]);
 	} else {
 		await sendPacketSavitech(device, [1, 22, 4, 0, 1, 0, 0]);
 		await delay(20);
 		await sendPacketSavitech(device, [1, 22, 4, 0, 0, 0, 0]);
 	}
+	await refreshToFlash(device);
 }
 
 export async function setMicVolume(device: HIDDevice, volume: number) {
@@ -549,7 +587,7 @@ export async function setMicVolume(device: HIDDevice, volume: number) {
 }
 
 export async function refreshToFlash(device: HIDDevice) {
-	await delay(100);
+	await delay(1000);
 	await sendPacketSavitech(device, [1, 1, 0]);
 }
 
