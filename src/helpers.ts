@@ -1,0 +1,86 @@
+import { setDeviceGlobalGain } from "./dsp.ts";
+import type { EQ } from "./main.ts";
+
+/**
+ * Refresh the UI elements for a single EQ strip
+ * @param eqState Current EQ state
+ * @param i Band index
+ */
+export function refreshStripUI(eqState: EQ, i: number) {
+	const band = eqState[i];
+	const gainInput = document.querySelector(`#num-gain-${i}`) as HTMLInputElement;
+	const rangeInput = document.querySelector(`.eq-strip:nth-child(${i + 1}) input[type=range]`) as HTMLInputElement;
+	const freqInput = document.querySelector(`#num-freq-${i}`) as HTMLInputElement;
+	const qInput = document.querySelector(`#num-q-${i}`) as HTMLInputElement;
+	const typeSelect = document.querySelector(`#sel-type-${i}`) as HTMLSelectElement;
+	const checkInput = document.querySelector(`.eq-strip:nth-child(${i + 1}) input[type=checkbox]`) as HTMLInputElement;
+
+	if (gainInput) gainInput.value = band.gain.toString();
+	if (rangeInput) rangeInput.value = band.gain.toString();
+	if (freqInput) freqInput.value = band.freq.toString();
+	if (qInput) qInput.value = band.q.toString();
+	if (typeSelect) typeSelect.value = band.type;
+	if (checkInput) checkInput.checked = band.enabled;
+}
+
+/**
+ * Update global preamp gain UI
+ * @param val The new global gain value
+ */
+export function updateGlobalGainUI(val: number) {
+	const globalGainSlider = document.getElementById("globalGainSlider") as HTMLInputElement;
+	if (globalGainSlider) globalGainSlider.value = val.toString();
+
+	const globalGainDisplay = document.getElementById("globalGainDisplay") as HTMLElement;
+	if (globalGainDisplay) globalGainDisplay.innerText = `${val} dB`;
+}
+
+/**
+ * Update global gain and send to device
+ * @param newGlobalGainState The new global gain value
+ */
+export async function updateGlobalGain(newGlobalGainState: number) {
+	updateGlobalGainUI(newGlobalGainState);
+	await setDeviceGlobalGain(newGlobalGainState);
+}
+
+/**
+ * Set global gain (called from event handler)
+ * @param e Event object
+ */
+export async function setGlobalGain(e: Event) {
+	const globalGainEl = e.target as HTMLInputElement;
+	const newGlobalGainState = Number(globalGainEl.value);
+	await updateGlobalGain(newGlobalGainState);
+}
+
+/**
+ * Enable or disable interactive controls based on connection state
+ * @param enabled True to enable controls
+ */
+export function enableControls(enabled: boolean) {
+	const els = document.querySelectorAll(
+		"input, select, button.action, button.reset, button#btnExport",
+	);
+	for (const el of els) {
+		(el as HTMLInputElement | HTMLSelectElement | HTMLButtonElement).disabled = !enabled;
+	}
+}
+
+/**
+ * Log a message to the on-screen debug console
+ * @param msg Message text
+ */
+export function log(msg: string) {
+	const consoleEl = document.getElementById("logConsole");
+	if (!consoleEl) return;
+	const timestamp = new Date().toLocaleTimeString();
+	consoleEl.innerHTML += `<div>[${timestamp}] ${msg}</div>`;
+	consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+/**
+ * Async delay helper
+ * @param ms Milliseconds to delay
+ */
+export const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
