@@ -4,6 +4,7 @@ import {
 	VID_FIIO,
 	VID_SAVITECH,
 	VID_SAVITECH_OFFICIAL,
+	VID_AUDIOCULAR,
 } from "./constants.ts";
 import { readDeviceParams, setupListener, syncToDevice } from "./dsp.ts";
 import { enableControls, log, updateGlobalGainUI } from "./helpers.ts";
@@ -99,6 +100,7 @@ export async function connectToDevice() {
 	try {
 		// Basic automatic filters
 		const filters: any[] = [
+			{ vendorId: VID_AUDIOCULAR },        // TTGK / Audiocular Aura (CB5100)
 			{ vendorId: VID_SAVITECH_OFFICIAL }, // Fosi, iBasso, Savitech Official
 			{ vendorId: VID_SAVITECH },          // JCally, Savitech Generic
 			{ vendorId: VID_COMTRUE },           // Moondrop, Tanchjim
@@ -167,6 +169,7 @@ export async function connectToDevice() {
 		if (
 			device.vendorId === VID_SAVITECH ||
 			device.vendorId === VID_SAVITECH_OFFICIAL ||
+			device.vendorId === VID_AUDIOCULAR ||
 			(customVidEl && customVidEl.value.trim() !== "") // Allow reading for custom-defined Savitech variants
 		) {
 			setupListener(device);
