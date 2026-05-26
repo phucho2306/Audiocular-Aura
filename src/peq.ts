@@ -24,23 +24,6 @@ let onUpdateCallback:
 // DOM Elements
 let canvas: HTMLCanvasElement | null = null;
 let ctx: CanvasRenderingContext2D | null = null;
-let bandList: HTMLElement | null = null;
-let controlsArea: HTMLElement | null = null;
-
-const inputs = {
-	type: null as HTMLSelectElement | null,
-	freq: null as HTMLInputElement | null,
-	gain: null as HTMLInputElement | null,
-	q: null as HTMLInputElement | null,
-	bypass: null as HTMLInputElement | null,
-};
-
-const labels = {
-	freq: null as HTMLElement | null,
-	gain: null as HTMLElement | null,
-	q: null as HTMLElement | null,
-	id: null as HTMLElement | null,
-};
 
 /**
  * MATHEMATICS: Frequency to X Coordinate (Logarithmic Scale)
@@ -329,7 +312,7 @@ function drawHandles(
 /**
  * Redraw the entire canvas
  */
-function draw() {
+export function draw() {
 	if (!canvas || !ctx) return;
 	const width = (canvas as any).logicalWidth || canvas.width;
 	const height = (canvas as any).logicalHeight || canvas.height;
@@ -341,303 +324,102 @@ function draw() {
 }
 
 /**
- * Synchronize UI controls (sliders, selectors) to match the selected band
- */
-function updateControls() {
-	if (!controlsArea) return;
-
-	if (selectedIndex === null) {
-		controlsArea.classList.add("hidden");
-		return;
-	}
-
-	const band = localBands[selectedIndex];
-	if (!band) return;
-
-	controlsArea.classList.remove("hidden");
-
-	if (labels.id) labels.id.textContent = `#${band.index + 1}`;
-	if (inputs.type) inputs.type.value = band.type;
-
-	if (inputs.freq && labels.freq) {
-		const logMin = Math.log10(CONFIG.minFreq);
-		const logMax = Math.log10(CONFIG.maxFreq);
-		inputs.freq.min = logMin.toString();
-		inputs.freq.max = logMax.toString();
-		inputs.freq.step = "0.001";
-		inputs.freq.value = Math.log10(band.freq).toString();
-		labels.freq.textContent = Math.round(band.freq) + " Hz";
-	}
-
-	if (inputs.gain && labels.gain) {
-		inputs.gain.min = (-CONFIG.gainRange).toString();
-		inputs.gain.max = CONFIG.gainRange.toString();
-		inputs.gain.value = band.gain.toString();
-		labels.gain.textContent = band.gain.toFixed(1) + " dB";
-	}
-
-	if (inputs.q && labels.q) {
-		inputs.q.value = band.q.toString();
-		labels.q.textContent = band.q.toFixed(2);
-	}
-
-	if (inputs.bypass) {
-		inputs.bypass.checked = band.enabled;
-	}
-}
-
-/**
- * Re-render the list of bands in the sidebar panel
- */
-function updateList() {
-	if (!bandList) return;
-	bandList.innerHTML = "";
-
-	localBands.forEach((band) => {
-		const div = document.createElement("div");
-		const isSelected = band.index === selectedIndex;
-		
-		div.className = `band-item ${isSelected ? "band-item-selected" : ""} ${!band.enabled ? "band-item-disabled" : ""}`;
-
-		div.innerHTML = `
-			<div class="band-item-details">
-				<span class="band-item-title">Band ${band.index + 1} (${band.type})</span>
-				<span class="band-item-subtitle">${Math.round(band.freq)} Hz · ${band.gain.toFixed(1)} dB · Q ${band.q.toFixed(2)}</span>
-			</div>
-			<div class="band-status">
-				<div class="indicator-dot ${band.enabled ? "indicator-dot-active" : ""}"></div>
-			</div>
-		`;
-		
-		div.onclick = () => selectBand(band.index);
-		bandList!.appendChild(div);
-	});
-}
-
-/**
- * Set selected band index
- */
-function selectBand(index: number) {
-	selectedIndex = index;
-	updateList();
-	updateControls();
-	draw();
-}
-
-/**
- * INITIALIZATION API: Renders structure inside the container and binds DOM events
+ * INITIALIZATION API: Binds DOM events to the canvas
  */
 export function renderPEQ(
-	container: HTMLElement,
+	_container: HTMLElement, // Left for compatibility
 	bands: Band[],
 	updateCallback: (index: number, key: string, value: any) => void,
 ) {
-	if (!container) return;
-
 	localBands = bands;
 	onUpdateCallback = updateCallback;
 
-	if (!container.querySelector("#peq-root")) {
-		container.innerHTML = `
-		<div id="peq-root" class="peq-layout">
-			<!-- Canvas Graph -->
-			<div class="canvas-card">
-				<div class="canvas-container">
-					<canvas id="eqCanvas" class="peq-canvas"></canvas>
-				</div>
-			</div>
+	canvas = document.getElementById("eqCanvas") as HTMLCanvasElement;
+	if (!canvas) return;
+	ctx = canvas.getContext("2d");
 
-			<!-- Sidebar Controls -->
-			<div class="sidebar-card">
-				<h2 class="panel-title">EQ Bands</h2>
-				
-				<!-- Scrollable List of Bands -->
-				<div id="bandList" class="band-list"></div>
-
-				<!-- Editing Section for Selected Band -->
-				<div id="controlsArea" class="band-controls-area hidden">
-					<div class="controls-header">
-						<h3 class="controls-title">Edit Band <span id="lblSelectedId">#</span></h3>
-						<label class="switch">
-							<input type="checkbox" id="inputBypass">
-							<span class="slider"></span>
-						</label>
-					</div>
-
-					<div class="control-group">
-						<label class="control-label">Filter Type</label>
-						<select id="inputType" class="premium-select">
-							<option value="PK">Peak (Peaking)</option>
-							<option value="LSQ">Low Shelf</option>
-							<option value="HSQ">High Shelf</option>
-						</select>
-					</div>
-
-					<div class="control-group">
-						<div class="control-label-row">
-							<label>Frequency</label>
-							<span id="lblFreq" class="control-value">1000 Hz</span>
-						</div>
-						<input id="inputFreq" type="range" class="premium-range">
-					</div>
-
-					<div class="control-group">
-						<div class="control-label-row">
-							<label>Gain</label>
-							<span id="lblGain" class="control-value">0.0 dB</span>
-						</div>
-						<input id="inputGain" type="range" step="0.5" class="premium-range">
-					</div>
-
-					<div class="control-group">
-						<div class="control-label-row">
-							<label>Q (Width)</label>
-							<span id="lblQ" class="control-value">0.75</span>
-						</div>
-						<input id="inputQ" type="range" min="0.1" max="10" step="0.05" class="premium-range">
-					</div>
-				</div>
-			</div>
-		</div>
-		`;
-
-		// Bind Elements
-		canvas = container.querySelector("#eqCanvas");
-		ctx = canvas?.getContext("2d") || null;
-		bandList = container.querySelector("#bandList");
-		controlsArea = container.querySelector("#controlsArea");
-
-		inputs.type = container.querySelector("#inputType");
-		inputs.freq = container.querySelector("#inputFreq");
-		inputs.gain = container.querySelector("#inputGain");
-		inputs.q = container.querySelector("#inputQ");
-		inputs.bypass = container.querySelector("#inputBypass");
-
-		labels.freq = container.querySelector("#lblFreq");
-		labels.gain = container.querySelector("#lblGain");
-		labels.q = container.querySelector("#lblQ");
-		labels.id = container.querySelector("#lblSelectedId");
+	if (!(canvas as any).listenersBound) {
+		(canvas as any).listenersBound = true;
 
 		// Resize observer for canvas scalability
 		const resizeObserver = new ResizeObserver(() => resizeCanvas());
-		if (canvas?.parentElement) {
+		if (canvas.parentElement) {
 			resizeObserver.observe(canvas.parentElement);
 		}
 
 		resizeCanvas();
 
 		// MOUSE DRAGGING ON CANVAS
-		if (canvas) {
-			canvas.addEventListener("mousedown", (e) => {
-				const rect = canvas!.getBoundingClientRect();
-				const scaleX = (canvas as any).logicalWidth / rect.width;
-				const scaleY = (canvas as any).logicalHeight / rect.height;
-				const x = (e.clientX - rect.left) * scaleX;
-				const y = (e.clientY - rect.top) * scaleY;
+		canvas.addEventListener("mousedown", (e) => {
+			const rect = canvas!.getBoundingClientRect();
+			const scaleX = (canvas as any).logicalWidth / rect.width;
+			const scaleY = (canvas as any).logicalHeight / rect.height;
+			const x = (e.clientX - rect.left) * scaleX;
+			const y = (e.clientY - rect.top) * scaleY;
 
-				let closestIdx = -1;
-				let minDst = 1000;
+			let closestIdx = -1;
+			let minDst = 1000;
 
-				const w = (canvas as any).logicalWidth;
-				const h = (canvas as any).logicalHeight;
+			const w = (canvas as any).logicalWidth;
+			const h = (canvas as any).logicalHeight;
 
-				localBands.forEach((band) => {
-					const bx = freqToX(band.freq, w);
-					const by = gainToY(band.gain, h);
-					const dist = Math.sqrt((x - bx) ** 2 + (y - by) ** 2);
-					
-					// Click threshold of 24 pixels
-					if (dist < 24) {
-						if (dist < minDst) {
-							minDst = dist;
-							closestIdx = band.index;
-						}
+			localBands.forEach((band) => {
+				const bx = freqToX(band.freq, w);
+				const by = gainToY(band.gain, h);
+				const dist = Math.sqrt((x - bx) ** 2 + (y - by) ** 2);
+				
+				// Click threshold of 24 pixels
+				if (dist < 24) {
+					if (dist < minDst) {
+						minDst = dist;
+						closestIdx = band.index;
 					}
-				});
-
-				if (closestIdx !== -1) {
-					draggingIndex = closestIdx;
-					selectBand(closestIdx);
 				}
 			});
 
-			window.addEventListener("mousemove", (e) => {
-				if (draggingIndex === null || !canvas) return;
-
-				const rect = canvas.getBoundingClientRect();
-				const relX = e.clientX - rect.left;
-				const relY = e.clientY - rect.top;
-
-				const clampedX = Math.max(
-					CONFIG.padding,
-					Math.min(rect.width - CONFIG.padding, relX),
-				);
-				const clampedY = Math.max(
-					CONFIG.padding,
-					Math.min(rect.height - CONFIG.padding, relY),
-				);
-
-				const freq = Math.round(xToFreq(clampedX, rect.width));
-				const gain = Math.round(yToGain(clampedY, rect.height) * 10) / 10;
-
-				handleUpdate(draggingIndex, "freq", freq);
-				handleUpdate(draggingIndex, "gain", gain);
-			});
-
-			window.addEventListener("mouseup", () => {
-				draggingIndex = null;
-			});
-		}
-
-		// EVENT LISTENERS FOR CONTROLS
-		inputs.type?.addEventListener("change", (e) => {
-			if (selectedIndex !== null)
-				handleUpdate(
-					selectedIndex,
-					"type",
-					(e.target as HTMLSelectElement).value,
-				);
-		});
-
-		inputs.freq?.addEventListener("input", (e) => {
-			if (selectedIndex !== null) {
-				const val = parseFloat((e.target as HTMLInputElement).value);
-				const freq = Math.round(10 ** val);
-				handleUpdate(selectedIndex, "freq", freq);
+			if (closestIdx !== -1) {
+				draggingIndex = closestIdx;
+				selectedIndex = closestIdx;
+				draw();
 			}
 		});
 
-		inputs.gain?.addEventListener("input", (e) => {
-			if (selectedIndex !== null)
-				handleUpdate(
-					selectedIndex,
-					"gain",
-					(e.target as HTMLInputElement).value,
-				);
+		window.addEventListener("mousemove", (e) => {
+			if (draggingIndex === null || !canvas) return;
+
+			const rect = canvas.getBoundingClientRect();
+			const relX = e.clientX - rect.left;
+			const relY = e.clientY - rect.top;
+
+			const clampedX = Math.max(
+				CONFIG.padding,
+				Math.min(rect.width - CONFIG.padding, relX),
+			);
+			const clampedY = Math.max(
+				CONFIG.padding,
+				Math.min(rect.height - CONFIG.padding, relY),
+			);
+
+			const freq = Math.round(xToFreq(clampedX, rect.width));
+			const gain = Math.round(yToGain(clampedY, rect.height) * 10) / 10;
+
+			// Limit gain range within -12 to 12
+			const clampedGain = Math.max(-12, Math.min(12, gain));
+
+			handleUpdate(draggingIndex, "freq", freq);
+			handleUpdate(draggingIndex, "gain", clampedGain);
 		});
 
-		inputs.q?.addEventListener("input", (e) => {
-			if (selectedIndex !== null)
-				handleUpdate(selectedIndex, "q", (e.target as HTMLInputElement).value);
-		});
-
-		inputs.bypass?.addEventListener("change", (e) => {
-			if (selectedIndex !== null)
-				handleUpdate(
-					selectedIndex,
-					"enabled",
-					(e.target as HTMLInputElement).checked,
-				);
+		window.addEventListener("mouseup", () => {
+			draggingIndex = null;
 		});
 	}
 
-	updateList();
-	updateControls();
 	draw();
 }
 
 /**
- * Handle state update callbacks and sync DOM states
+ * Handle state update callbacks
  */
 function handleUpdate(index: number, key: string, value: any) {
 	if (onUpdateCallback) {
@@ -652,8 +434,6 @@ function handleUpdate(index: number, key: string, value: any) {
 		if (key === "type") band.type = String(value);
 		if (key === "enabled") band.enabled = Boolean(value);
 
-		updateList();
-		updateControls();
 		draw();
 	}
 }

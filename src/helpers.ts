@@ -7,13 +7,14 @@ import type { EQ } from "./main.ts";
  * @param i Band index
  */
 export function refreshStripUI(eqState: EQ, i: number) {
+	// Only updates values, does not re-create DOM (prevents focus loss)
 	const band = eqState[i];
-	const gainInput = document.querySelector(`#num-gain-${i}`) as HTMLInputElement;
+	const gainInput = document.getElementById(`num-gain-${i}`) as HTMLInputElement;
 	const rangeInput = document.querySelector(`.eq-strip:nth-child(${i + 1}) input[type=range]`) as HTMLInputElement;
-	const freqInput = document.querySelector(`#num-freq-${i}`) as HTMLInputElement;
-	const qInput = document.querySelector(`#num-q-${i}`) as HTMLInputElement;
-	const typeSelect = document.querySelector(`#sel-type-${i}`) as HTMLSelectElement;
-	const checkInput = document.querySelector(`.eq-strip:nth-child(${i + 1}) input[type=checkbox]`) as HTMLInputElement;
+	const freqInput = document.getElementById(`num-freq-${i}`) as HTMLInputElement;
+	const qInput = document.getElementById(`num-q-${i}`) as HTMLInputElement;
+	const typeSelect = document.getElementById(`sel-type-${i}`) as HTMLSelectElement;
+	const checkInput = document.getElementById(`check-enabled-${i}`) as HTMLInputElement;
 
 	if (gainInput) gainInput.value = band.gain.toString();
 	if (rangeInput) rangeInput.value = band.gain.toString();
@@ -21,6 +22,16 @@ export function refreshStripUI(eqState: EQ, i: number) {
 	if (qInput) qInput.value = band.q.toString();
 	if (typeSelect) typeSelect.value = band.type;
 	if (checkInput) checkInput.checked = band.enabled;
+
+	// Toggle visual bypassed class state
+	const strip = document.querySelector(`.eq-strip:nth-child(${i + 1})`);
+	if (strip) {
+		if (band.enabled) {
+			strip.classList.remove("bypassed");
+		} else {
+			strip.classList.add("bypassed");
+		}
+	}
 }
 
 /**

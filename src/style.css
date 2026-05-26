@@ -1034,3 +1034,187 @@ body.aura-app-theme {
   50% { opacity: 1; }
   100% { opacity: 0.6; }
 }
+
+/* --- Canvas Wrapper Full Width --- */
+.canvas-wrapper-full {
+  width: 100%;
+  height: 380px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- EQ Strips Grid --- */
+.eq-strips-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .eq-strips-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .eq-strips-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* --- EQ Strip Card --- */
+.eq-strip {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  transition: opacity var(--transition-speed), border-color var(--transition-speed), background var(--transition-speed);
+}
+
+.eq-strip:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-hover);
+}
+
+.eq-strip.bypassed {
+  opacity: 0.35;
+}
+
+.strip-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.strip-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.strip-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-online);
+}
+
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.slider-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Vertical range input styling */
+.vertical-slider {
+  writing-mode: bt-lr; /* IE */
+  -webkit-appearance: slider-vertical; /* WebKit */
+  width: 16px;
+  height: 140px;
+  padding: 0 4px;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.gain-input-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.strip-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.strip-field-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.strip-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  width: 100%;
+  text-align: center;
+  outline: none;
+  transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+
+.strip-input:focus {
+  border-color: var(--color-violet);
+  box-shadow: 0 0 6px var(--color-violet-glow);
+}
+
+/* Remove spin buttons from number inputs in strips */
+.strip-input::-webkit-outer-spin-button,
+.strip-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.strip-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.strip-select {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  width: 100%;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition-speed);
+}
+
+.strip-select:focus {
+  border-color: var(--color-violet);
+}
+
+/* --- Bottom Utilities Grid --- */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 968px) {
+  .bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}

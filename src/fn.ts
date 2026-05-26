@@ -1,5 +1,6 @@
 import {
 	DEFAULT_FREQS,
+	DEFAULT_LABELS,
 	VID_COMTRUE,
 	VID_FIIO,
 	VID_SAVITECH,
@@ -7,7 +8,7 @@ import {
 	VID_AUDIOCULAR,
 } from "./constants.ts";
 import { readDeviceParams, setupListener, syncToDevice } from "./dsp.ts";
-import { enableControls, log, updateGlobalGainUI } from "./helpers.ts";
+import { enableControls, log, updateGlobalGainUI, refreshStripUI } from "./helpers.ts";
 import type { Band, EQ } from "./main.ts";
 import { renderPEQ, resizeCanvas } from "./peq.ts";
 
@@ -82,15 +83,73 @@ export function defaultEqState(): EQ {
  * Trigger UI updates and EQ graph re-render
  */
 export function renderUI(eqState: EQ) {
-	const container = document.getElementById("eqContainer");
-	if (!container) {
-		console.error("EQ Container element not found!");
-		return;
+	// 1. Render the PEQ Canvas Visualizer Graph
+	const visualizerContainer = document.querySelector(".canvas-wrapper-full");
+	if (visualizerContainer) {
+		renderPEQ(visualizerContainer as HTMLElement, eqState, (index, key, value) => {
+			updateState(index, key, value);
+		});
 	}
 
-	renderPEQ(container, eqState, (index, key, value) => {
-		updateState(index, key, value);
-	});
+	// 2. Render or Sync the 8 EQ Strips side-by-side
+	const stripsContainer = document.getElementById("eqStrips");
+	if (stripsContainer) {
+		if (stripsContainer.children.length === 0) {
+			stripsContainer.innerHTML = "";
+			eqState.forEach((band, i) => {
+				const div = document.createElement("div");
+				div.className = `eq-strip ${band.enabled ? "" : "bypassed"}`;
+				div.innerHTML = `
+					<div class="strip-header">
+						<h3 class="strip-title">BAND ${i + 1}</h3>
+						<span class="strip-label">${DEFAULT_LABELS[i]}</span>
+					</div>
+					
+					<label class="switch">
+						<input type="checkbox" id="check-enabled-${i}" ${band.enabled ? "checked" : ""} onchange="window.updateState(${i}, 'enabled', this.checked)">
+						<span class="slider"></span>
+					</label>
+
+					<div class="slider-container">
+						<span class="slider-label">Gain (dB)</span>
+						<input type="range" orient="vertical" min="-12" max="12" step="0.5" value="${band.gain}" 
+							oninput="window.updateState(${i}, 'gain', this.value)" ${device ? "" : "disabled"} class="vertical-slider">
+						<div class="gain-input-wrapper">
+							<input type="number" value="${band.gain}" step="0.5" min="-12" max="12"
+								onchange="window.updateState(${i}, 'gain', this.value)" id="num-gain-${i}" ${device ? "" : "disabled"} class="strip-input font-mono">
+						</div>
+					</div>
+
+					<div class="strip-field">
+						<label class="strip-field-label">Freq (Hz)</label>
+						<input type="number" value="${band.freq}" min="20" max="20000" step="1"
+							onchange="window.updateState(${i}, 'freq', this.value)" id="num-freq-${i}" ${device ? "" : "disabled"} class="strip-input font-mono">
+					</div>
+
+					<div class="strip-field">
+						<label class="strip-field-label">Q Factor</label>
+						<input type="number" value="${band.q}" min="0.1" max="10" step="0.05"
+							onchange="window.updateState(${i}, 'q', this.value)" id="num-q-${i}" ${device ? "" : "disabled"} class="strip-input font-mono">
+					</div>
+
+					<div class="strip-field">
+						<label class="strip-field-label">Type</label>
+						<select onchange="window.updateState(${i}, 'type', this.value)" id="sel-type-${i}" ${device ? "" : "disabled"} class="strip-select">
+							<option value="PK" ${band.type === "PK" ? "selected" : ""}>Peak</option>
+							<option value="LSQ" ${band.type === "LSQ" ? "selected" : ""}>Low Shelf</option>
+							<option value="HSQ" ${band.type === "HSQ" ? "selected" : ""}>High Shelf</option>
+						</select>
+					</div>
+				`;
+				stripsContainer.appendChild(div);
+			});
+		} else {
+			// Update the values in the existing elements
+			eqState.forEach((_, i) => {
+				refreshStripUI(eqState, i);
+			});
+		}
+	}
 }
 
 /**
