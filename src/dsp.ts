@@ -490,3 +490,72 @@ function encodeToByteArray(coeffs: number[]) {
 	}
 	return arr;
 }
+
+/**
+ * Advanced settings commands (Savitech CB5100 DSP)
+ */
+export async function setDacFilter(device: HIDDevice, filterType: string) {
+	let r = 1;
+	switch (filterType) {
+		case "FAST-LL": r = 1; break;
+		case "FAST-PC": r = 2; break;
+		case "Slow-LL": r = 3; break;
+		case "Slow-PC": r = 4; break;
+		case "NON-OS":  r = 5; break;
+		default: r = 1;
+	}
+	log(`Setting DAC Filter: ${filterType} (index ${r})`);
+	await sendPacketSavitech(device, [1, 17, 1, r]);
+}
+
+export async function setDacWorkMode(device: HIDDevice, isClassAB: boolean) {
+	const r = isClassAB ? 1 : 0;
+	log(`Setting Amp Mode: ${isClassAB ? "Class AB" : "Class H"}`);
+	await sendPacketSavitech(device, [1, 29, 1, r]);
+}
+
+export async function setDacOutputGain(device: HIDDevice, isHighGain: boolean) {
+	const r = isHighGain ? 1 : 0;
+	log(`Setting DAC Output Gain Mode: ${isHighGain ? "HIGH" : "LOW"}`);
+	await sendPacketSavitech(device, [1, 25, 1, r]);
+}
+
+export async function setDacBalance(device: HIDDevice, balance: number) {
+	log(`Setting DAC Balance: ${balance}`);
+	if (balance < 0) {
+		const t = Math.abs(balance);
+		const n = 256 - t;
+		await sendPacketSavitech(device, [1, 22, 4, 1, 0, n, 0]);
+		await delay(20);
+		await sendPacketSavitech(device, [1, 22, 4, 0, 0, 0, 0]);
+	} else if (balance > 0) {
+		await sendPacketSavitech(device, [1, 22, 4, 1, 0, 0, 0]);
+		await delay(20);
+		const t = balance;
+		const n = 256 - t;
+		await sendPacketSavitech(device, [1, 22, 4, 0, 0, n, 0]);
+	} else {
+		await sendPacketSavitech(device, [1, 22, 4, 0, 1, 0, 0]);
+		await delay(20);
+		await sendPacketSavitech(device, [1, 22, 4, 0, 0, 0, 0]);
+	}
+}
+
+export async function setMicVolume(device: HIDDevice, volume: number) {
+	log(`Setting Microphone Gain: ${volume} dB`);
+	await sendPacketSavitech(device, [1, 2, 2, 128, volume]);
+	await delay(50);
+	await refreshToFlash(device);
+}
+
+export async function refreshToFlash(device: HIDDevice) {
+	await delay(100);
+	await sendPacketSavitech(device, [1, 1, 0]);
+}
+
+export async function executeFactoryReset(device: HIDDevice) {
+	log("Executing Factory Reset...");
+	await sendPacketSavitech(device, [1, 23, 0]);
+	await delay(100);
+	await refreshToFlash(device);
+}

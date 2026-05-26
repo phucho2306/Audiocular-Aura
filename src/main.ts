@@ -1,10 +1,20 @@
 import "./style.css";
-import { flashToFlash, syncToDevice } from "./dsp.ts";
+import {
+	flashToFlash,
+	syncToDevice,
+	setDacFilter,
+	setDacWorkMode,
+	setDacOutputGain,
+	setDacBalance,
+	setMicVolume,
+	executeFactoryReset,
+} from "./dsp.ts";
 import {
 	connectToDevice,
 	disconnectDevice,
 	initState,
 	resetToDefaults,
+	getDevice,
 } from "./fn.ts";
 import { setGlobalGain, log } from "./helpers.ts";
 import { exportProfile, importProfile } from "./importExport.ts";
@@ -221,12 +231,16 @@ const filterDescriptions = {
 	"NON-OS": "<strong>NON-OS (Non-Oversampling):</strong> Bypasses digital interpolation entirely. Pure, raw, and analog-like sound signature with a slight high-frequency roll-off. Recommended for a vintage sound."
 };
 
-selFilterType?.addEventListener("change", () => {
+selFilterType?.addEventListener("change", async () => {
 	const filter = selFilterType.value as keyof typeof filterDescriptions;
 	const desc = filterDescriptions[filter] || "";
 	if (filterDescBox) filterDescBox.innerHTML = desc;
 	if (filterTypeVal) filterTypeVal.innerText = selFilterType.options[selFilterType.selectedIndex].text;
 	log(`[System] DAC Filter type set to: ${filter}`);
+	const dev = getDevice();
+	if (dev) {
+		await setDacFilter(dev, filter);
+	}
 });
 
 // Amp Mode Switch
@@ -234,8 +248,9 @@ const toggleAmpMode = document.getElementById("toggleAmpMode") as HTMLInputEleme
 const ampLabelClassH = document.getElementById("ampLabelClassH") as HTMLElement;
 const ampLabelClassAB = document.getElementById("ampLabelClassAB") as HTMLElement;
 
-toggleAmpMode?.addEventListener("change", () => {
+toggleAmpMode?.addEventListener("change", async () => {
 	const isClassH = toggleAmpMode.checked;
+	const isClassAB = !isClassH;
 	if (isClassH) {
 		ampLabelClassH?.classList.add("active");
 		ampLabelClassAB?.classList.remove("active");
@@ -245,6 +260,10 @@ toggleAmpMode?.addEventListener("change", () => {
 		ampLabelClassAB?.classList.add("active");
 		log("[System] Amplifier topology set to: Class AB (Linear power mode)");
 	}
+	const dev = getDevice();
+	if (dev) {
+		await setDacWorkMode(dev, isClassAB);
+	}
 });
 
 // Gain Mode Switch
@@ -252,7 +271,7 @@ const toggleGainMode = document.getElementById("toggleGainMode") as HTMLInputEle
 const gainLabelLow = document.getElementById("gainLabelLow") as HTMLElement;
 const gainLabelHigh = document.getElementById("gainLabelHigh") as HTMLElement;
 
-toggleGainMode?.addEventListener("change", () => {
+toggleGainMode?.addEventListener("change", async () => {
 	const isHigh = toggleGainMode.checked;
 	if (isHigh) {
 		gainLabelLow?.classList.remove("active");
@@ -262,6 +281,10 @@ toggleGainMode?.addEventListener("change", () => {
 		gainLabelLow?.classList.add("active");
 		gainLabelHigh?.classList.remove("active");
 		log("[System] Hardware Output Gain set to: LOW (Standard output power level)");
+	}
+	const dev = getDevice();
+	if (dev) {
+		await setDacOutputGain(dev, isHigh);
 	}
 });
 
@@ -279,9 +302,13 @@ sliderBalance?.addEventListener("input", () => {
 	}
 	if (balanceVal) balanceVal.innerText = text;
 });
-sliderBalance?.addEventListener("change", () => {
+sliderBalance?.addEventListener("change", async () => {
 	const val = parseInt(sliderBalance.value);
 	log(`[System] L/R Channel Balance adjusted to: ${val}`);
+	const dev = getDevice();
+	if (dev) {
+		await setDacBalance(dev, val);
+	}
 });
 
 // Microphone Monitoring & Levels Animation
@@ -341,19 +368,28 @@ sliderMicGain?.addEventListener("input", () => {
 	const val = sliderMicGain.value;
 	if (micGainVal) micGainVal.innerText = `${val} dB`;
 });
-sliderMicGain?.addEventListener("change", () => {
-	const val = sliderMicGain.value;
+sliderMicGain?.addEventListener("change", async () => {
+	const val = parseInt(sliderMicGain.value);
 	log(`[System] Microphone capture gain adjusted to: ${val} dB`);
+	const dev = getDevice();
+	if (dev) {
+		await setMicVolume(dev, val);
+	}
 });
 
 // Factory Reset & Get FW buttons
 const btnFactoryReset = document.getElementById("btnFactoryReset");
 const btnGetFw = document.getElementById("btnGetFw");
 
-btnFactoryReset?.addEventListener("click", () => {
+btnFactoryReset?.addEventListener("click", async () => {
 	if (confirm("Perform full hardware factory reset? This will restore standard filters, AB amplifier modes, center channel balance, and clear local state settings.")) {
 		log("[System] Executing hardware factory reset sequence...");
 		
+		const dev = getDevice();
+		if (dev) {
+			await executeFactoryReset(dev);
+		}
+
 		// Reset controls
 		if (selFilterType) {
 			selFilterType.value = "FAST-LL";
