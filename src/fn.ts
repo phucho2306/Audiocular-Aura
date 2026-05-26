@@ -4,6 +4,7 @@ import {
 	VID_COMTRUE,
 	VID_FIIO,
 	VID_SAVITECH,
+	VID_SAVITECH_ALT,
 	VID_SAVITECH_OFFICIAL,
 	VID_AUDIOCULAR,
 } from "./constants.ts";
@@ -162,6 +163,7 @@ export async function connectToDevice() {
 			{ vendorId: VID_AUDIOCULAR },        // TTGK / Audiocular Aura (CB5100)
 			{ vendorId: VID_SAVITECH_OFFICIAL }, // Fosi, iBasso, Savitech Official
 			{ vendorId: VID_SAVITECH },          // JCally, Savitech Generic
+			{ vendorId: VID_SAVITECH_ALT },      // JCally JM20 Pro, Savitech Alt
 			{ vendorId: VID_COMTRUE },           // Moondrop, Tanchjim
 			{ vendorId: VID_FIIO },              // FiiO
 		];
@@ -227,6 +229,7 @@ export async function connectToDevice() {
 		// Support parameter reading for Savitech-based DACs
 		if (
 			device.vendorId === VID_SAVITECH ||
+			device.vendorId === VID_SAVITECH_ALT ||
 			device.vendorId === VID_SAVITECH_OFFICIAL ||
 			device.vendorId === VID_AUDIOCULAR ||
 			(customVidEl && customVidEl.value.trim() !== "") // Allow reading for custom-defined Savitech variants

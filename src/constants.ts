@@ -9,6 +9,7 @@ export const REPORT_ID_FIIO = 7;     // FiiO default
 
 // Vendor IDs
 export const VID_SAVITECH = 0x0661;           // JCally, generic Savitech
+export const VID_SAVITECH_ALT = 0x0666;       // JCally JM20 Pro, generic Savitech alt
 export const VID_SAVITECH_OFFICIAL = 0x262a;  // Fosi, iBasso
 export const VID_COMTRUE = 0x2fc6;            // Moondrop, Tanchjim (Comtrue CT7601)
 export const VID_FIIO = 0x2972;               // FiiO (JA11, KA17, etc.)
