@@ -376,7 +376,7 @@ export async function writeBand(
  * Write band for Savitech devices
  */
 async function writeBandSavitech(device: HIDDevice, band: Band, gain: number) {
-	const bArr = computeIIRFilter(band.freq, gain, band.q);
+	const bArr = computeIIRFilter(band.type, band.freq, gain, band.q);
 	const typeMap = { PK: 2, LSQ: 1, HSQ: 3 };
 
 	const freqBytes = toBytes(band.freq, 2);
@@ -411,7 +411,7 @@ async function writeBandSavitech(device: HIDDevice, band: Band, gain: number) {
  * Write band for Moondrop devices
  */
 async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
-	const coeffs = encodeBiquadMoondrop(band.freq, gain, band.q);
+	const coeffs = encodeBiquadMoondrop(band.type, band.freq, gain, band.q);
 	const typeMap = { PK: 2, LSQ: 1, HSQ: 3 };
 
 	const packet = new Uint8Array(63);
@@ -570,24 +570,85 @@ function toBytes(n: number, c: number) {
 /**
  * Savitech DSP Math: Q30 fixed-point IIR filter coefficients calculator
  */
-function computeIIRFilter(freq: number, gain: number, q: number) {
-	const fs = 96000;
-	const A = 10 ** (gain / 20);
-	const w0 = (freq * 2 * Math.PI) / fs;
+/**
+ * Calculate biquad filter coefficients (RBJ Audio EQ Cookbook)
+ * Normalizes by a0 and returns {b0, b1, b2, a1, a2}
+ */
+function computeBiquadCoeffs(
+	type: string,
+	freq: number,
+	gain: number,
+	q: number,
+	sampleRate: number
+) {
+	const w0 = (2 * Math.PI * freq) / sampleRate;
 	const alpha = Math.sin(w0) / (2 * q);
-	const d4 = alpha * Math.sqrt(A);
-	const d5 = alpha / Math.sqrt(A);
-	const inv_a0 = 1 / (d5 + 1);
-	
+	const A = 10 ** (gain / 40);
+	const cosw = Math.cos(w0);
+
+	let b0, b1, b2, a0, a1, a2;
+
+	switch (type) {
+		case "LSQ": {
+			// Low Shelf
+			const sa = 2 * Math.sqrt(A) * alpha;
+			b0 = A * (A + 1 - (A - 1) * cosw + sa);
+			b1 = 2 * A * (A - 1 - (A + 1) * cosw);
+			b2 = A * (A + 1 - (A - 1) * cosw - sa);
+			a0 = A + 1 + (A - 1) * cosw + sa;
+			a1 = -2 * (A - 1 + (A + 1) * cosw);
+			a2 = A + 1 + (A - 1) * cosw - sa;
+			break;
+		}
+		case "HSQ": {
+			// High Shelf
+			const sb = 2 * Math.sqrt(A) * alpha;
+			b0 = A * (A + 1 + (A - 1) * cosw + sb);
+			b1 = -2 * A * (A - 1 + (A + 1) * cosw);
+			b2 = A * (A + 1 + (A - 1) * cosw - sb);
+			a0 = A + 1 - (A - 1) * cosw + sb;
+			a1 = 2 * (A - 1 - (A + 1) * cosw);
+			a2 = A + 1 - (A - 1) * cosw - sb;
+			break;
+		}
+		case "PK":
+		default: {
+			// Peaking EQ
+			b0 = 1 + alpha * A;
+			b1 = -2 * cosw;
+			b2 = 1 - alpha * A;
+			a0 = 1 + alpha / A;
+			a1 = -2 * cosw;
+			a2 = 1 - alpha / A;
+			break;
+		}
+	}
+
+	const inv_a0 = 1 / a0;
+	return {
+		b0: b0 * inv_a0,
+		b1: b1 * inv_a0,
+		b2: b2 * inv_a0,
+		a1: a1 * inv_a0,
+		a2: a2 * inv_a0,
+	};
+}
+
+/**
+ * Savitech DSP Math: Q30 fixed-point IIR filter coefficients calculator
+ */
+function computeIIRFilter(type: string, freq: number, gain: number, q: number) {
+	const fs = 96000;
+	const coeffs = computeBiquadCoeffs(type, freq, gain, q, fs);
 	const s = 1073741824; // Scale factor for Q30 representation (2^30)
 	const q30 = (n: number) => Math.round(n * s);
 
 	return [
-		q30((1 + d4) * inv_a0),
-		q30(-2 * Math.cos(w0) * inv_a0),
-		q30((1 - d4) * inv_a0),
-		q30(-(-2 * Math.cos(w0) * inv_a0)),
-		q30(-((1 - d5) * inv_a0)),
+		q30(coeffs.b0),
+		q30(coeffs.b1),
+		q30(coeffs.b2),
+		q30(-coeffs.a1), // Savitech expects -a1
+		q30(-coeffs.a2), // Savitech expects -a2
 	].flatMap((v) => [
 		v & 0xff,
 		(v >> 8) & 0xff,
@@ -599,20 +660,18 @@ function computeIIRFilter(freq: number, gain: number, q: number) {
 /**
  * Moondrop DSP Math: coefficients encoding
  */
-function encodeBiquadMoondrop(freq: number, gain: number, q: number) {
-	const A = 10 ** (gain / 40);
-	const w0 = (2 * Math.PI * freq) / 96000;
-	const alpha = Math.sin(w0) / (2 * q);
-	const cosW0 = Math.cos(w0);
-	const norm = 1 + alpha / A;
+function encodeBiquadMoondrop(type: string, freq: number, gain: number, q: number) {
+	const fs = 96000;
+	const coeffs = computeBiquadCoeffs(type, freq, gain, q, fs);
+	const s = 1073741824;
 
-	const b0 = (1 + alpha * A) / norm;
-	const b1 = (-2 * cosW0) / norm;
-	const b2 = (1 - alpha * A) / norm;
-	const a1 = -b1;
-	const a2 = (1 - alpha / A) / norm;
-
-	return [b0, b1, b2, a1, -a2].map((c) => Math.round(c * 1073741824));
+	return [
+		coeffs.b0,
+		coeffs.b1,
+		coeffs.b2,
+		-coeffs.a1, // Moondrop expects -a1
+		-coeffs.a2, // Moondrop expects -a2
+	].map((c) => Math.round(c * s));
 }
 
 /**
@@ -692,9 +751,60 @@ export async function setMicVolume(device: HIDDevice, volume: number) {
 	await refreshToFlash(device);
 }
 
+let refreshTimeoutId: any = null;
+
 export async function refreshToFlash(device: HIDDevice) {
-	await delay(1000);
-	await sendPacketSavitech(device, [1, 1, 0]);
+	if (refreshTimeoutId) {
+		clearTimeout(refreshTimeoutId);
+	}
+	refreshTimeoutId = setTimeout(async () => {
+		refreshTimeoutId = null;
+		try {
+			await sendPacketSavitech(device, [1, 1, 0]);
+		} catch (e) {
+			log(`Refresh to Flash Error: ${(e as Error).message}`);
+		}
+	}, 1000);
+}
+
+/**
+ * Real-time throttled band write queue manager
+ */
+let pendingBands = new Map<number, Band>();
+let writeTimeoutId: any = null;
+
+export function queueRealtimeBandWrite(device: HIDDevice, band: Band) {
+	// Store the latest state of this band
+	pendingBands.set(band.index, { ...band });
+
+	if (writeTimeoutId !== null) return;
+
+	writeTimeoutId = setTimeout(async () => {
+		writeTimeoutId = null;
+		
+		const bandsToClear = Array.from(pendingBands.values());
+		pendingBands.clear();
+
+		if (!device) return;
+		const protocol = getProtocol(device);
+
+		// Write all pending bands
+		for (const b of bandsToClear) {
+			await writeBand(device, b, protocol);
+			await delay(25);
+		}
+
+		// If Savitech, send commit packet
+		if (protocol === "SAVITECH") {
+			try {
+				await sendPacketSavitech(device, [1, 10, 4, 0, 0, 255, 255]);
+				// Call refresh to flash to apply registers
+				await refreshToFlash(device);
+			} catch (e) {
+				log(`Savitech Realtime Commit Error: ${(e as Error).message}`);
+			}
+		}
+	}, 50); // 50ms batching window
 }
 
 export async function executeFactoryReset(device: HIDDevice) {

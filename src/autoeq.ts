@@ -122,7 +122,7 @@ export async function loadPreset(preset: AutoEqPreset) {
 		}
 
 		const text = await response.text();
-		loadProfileFromText(text);
+		await loadProfileFromText(text, preset.name);
 	} catch (err) {
 		log(`Error downloading preset: ${(err as Error).message}`);
 	}

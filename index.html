@@ -25,8 +25,11 @@
         <h1 class="main-title">🎧 AuraPEQ</h1>
         <p class="subtitle">Audiocular Aura & Multi-DAC Hardware DSP Controller</p>
       </div>
-      <div class="chipset-badge">
-        <span>Audiocular (CB5100) • Moondrop (CT7601) • FiiO DSP</span>
+      <div class="chipset-badge-container">
+        <div class="chipset-badge">
+          <span>Audiocular (CB5100) • Moondrop (CT7601) • FiiO DSP</span>
+        </div>
+        <button id="btnShowSupportedDacs" class="btn btn-secondary-text" style="font-size: 0.75rem; padding: 4px 8px; margin-top: 2px;" aria-label="Show supported DACs database">Supported DACs List 📋</button>
       </div>
     </header>
 
@@ -55,6 +58,12 @@
             <span id="fwVersion" class="fw-text"></span>
           </div>
 
+          <!-- Last Applied EQ Display -->
+          <div class="active-eq-group">
+            <span class="active-eq-label">Last Applied EQ to DAC:</span>
+            <span id="lastAppliedEqDisplay" class="active-eq-value">Flat Profile (Default)</span>
+          </div>
+
           <!-- Preamp Gain -->
           <div class="preamp-group">
             <div class="preamp-labels">
@@ -63,6 +72,16 @@
             </div>
             <input type="range" id="globalGainSlider" min="-20" max="10" step="1" value="0" class="preamp-slider" disabled aria-label="Adjust Pre-Amp Gain">
           </div>
+        </div>
+
+        <!-- Identified DAC Info Badge -->
+        <div id="dacBadgeContainer" class="dac-badge-card hidden">
+          <div class="dac-badge-header">
+            <span class="dac-badge-icon">⚡</span>
+            <span id="dacBadgeName" class="dac-badge-name">Audiocular Aura</span>
+          </div>
+          <div id="dacBadgeChipset" class="dac-badge-chipset">Savitech CB5100 + CS43131</div>
+          <div id="dacBadgeDesc" class="dac-badge-desc">Premium portable DAC featuring zero-latency hardware PEQ.</div>
         </div>
 
         <!-- Custom USB Settings Accordion Form -->
@@ -135,6 +154,14 @@
             </div>
             <div id="autoeqSearchResults" class="search-dropdown hidden">
               <!-- Results will be injected here -->
+            </div>
+          </div>
+
+          <!-- Pinned Favorites Section -->
+          <div class="favorites-section">
+            <h3 class="favorites-sub-title">⭐ Starred Presets</h3>
+            <div id="favoritePresetsList" class="favorites-list">
+              <!-- Rendered dynamically -->
             </div>
           </div>
         </section>
@@ -308,6 +335,20 @@
       <p>&copy; 2026 AuraPEQ. Designed for the Audiocular Aura (CS43131 / SGM8262 / CB5100 chipset). Powered by WebHID.</p>
     </footer>
 
+  </div>
+
+  <!-- Supported DACs Modal Dialog -->
+  <div id="modalSupportedDacs" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">📋 Supported Hardware DSP DACs</h3>
+        <button id="btnCloseModal" class="btn-close-modal" aria-label="Close supported DACs list">✖</button>
+      </div>
+      <p class="modal-desc">The following hardware DSP audio controllers have been identified as compatible with WebHID PEQ configuration:</p>
+      <div id="supportedDacsList" class="supported-dacs-list-modal">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
   </div>
 
   <!-- Script initialization -->

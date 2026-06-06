@@ -67,3 +67,58 @@ export const DEFAULT_LABELS = [
 	"Presence",
 	"Air",
 ];
+
+export interface IdentifiedDac {
+	vid: number;
+	pid?: number;
+	name: string;
+	chipset: string;
+	protocol: "SAVITECH" | "MOONDROP" | "FIIO";
+	description: string;
+}
+
+export const KNOWN_DACS: IdentifiedDac[] = [
+	{
+		vid: VID_AUDIOCULAR,
+		name: "Audiocular Aura",
+		chipset: "Savitech CB5100 + CS43131",
+		protocol: "SAVITECH",
+		description: "Premium portable DAC featuring zero-latency hardware PEQ.",
+	},
+	{
+		vid: VID_SAVITECH_OFFICIAL,
+		name: "Fosi Audio DS2 / iBasso DC04 Pro",
+		chipset: "Savitech Official (CB5100 series)",
+		protocol: "SAVITECH",
+		description: "Vibrant and powerful portable DAC/AMP with digital filter customization.",
+	},
+	{
+		vid: VID_SAVITECH,
+		name: "JCally JM20 / Savitech Generic",
+		chipset: "Savitech SA9312 / SA9123 DSP",
+		protocol: "SAVITECH",
+		description: "Generic Savitech DSP audio controller compatible with standard PEQ command packets.",
+	},
+	{
+		vid: VID_SAVITECH_ALT,
+		name: "JCally JM20 Pro / Alt Savitech",
+		chipset: "Savitech Alternate Controller",
+		protocol: "SAVITECH",
+		description: "Compatible alternate Savitech chip implementation.",
+	},
+	{
+		vid: VID_COMTRUE,
+		name: "Moondrop Dawn Pro / FreeDSP / May / Tanchjim Space Lite",
+		chipset: "Comtrue CT7601 (DSP Enabled)",
+		protocol: "MOONDROP",
+		description: "Supports Moondrop's Interactive DSP protocol with coefficients computed on-host.",
+	},
+	{
+		vid: VID_FIIO,
+		name: "FiiO JA11 / KA17 / KA15 / KB1",
+		chipset: "FiiO DSP Core",
+		protocol: "FIIO",
+		description: "Supports FiiO's custom 10-band DSP PEQ protocol over proprietary raw HID commands.",
+	},
+];
+

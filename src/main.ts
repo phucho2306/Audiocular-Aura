@@ -24,6 +24,7 @@ import {
 	loadPreset,
 	type AutoEqPreset,
 } from "./autoeq.ts";
+import { KNOWN_DACS } from "./constants.ts";
 
 export type Band = {
 	index: number;
@@ -37,6 +38,9 @@ export type EQ = Band[];
 
 // Initialize state and render PEQ on page load
 initState();
+setTimeout(() => {
+	renderFavorites();
+}, 0);
 
 /**
  * CONNECTION LOGIC
@@ -181,7 +185,22 @@ function renderSearchResults(query: string) {
 	matches.forEach((preset) => {
 		const div = document.createElement("div");
 		div.className = "search-item";
-		div.innerText = preset.name;
+		
+		const nameText = document.createElement("span");
+		nameText.className = "search-item-name";
+		nameText.innerText = preset.name;
+		div.appendChild(nameText);
+
+		const starBtn = document.createElement("button");
+		starBtn.className = `search-item-star ${isFavorite(preset) ? "starred" : ""}`;
+		starBtn.innerHTML = isFavorite(preset) ? "★" : "☆";
+		starBtn.title = isFavorite(preset) ? "Remove from favorites" : "Add to favorites";
+		starBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			toggleFavorite(preset);
+		});
+		div.appendChild(starBtn);
+
 		div.addEventListener("click", async () => {
 			searchResults.classList.add("hidden");
 			searchInput.value = preset.name;
@@ -431,3 +450,116 @@ btnGetFw?.addEventListener("click", () => {
 		log("[System] Device reports version: Aura v0.4 (Active)");
 	}
 });
+
+/**
+ * FAVORITES MANAGEMENT LOGIC
+ */
+let favoritePresets: AutoEqPreset[] = JSON.parse(
+	localStorage.getItem("aura_favorite_presets") || "[]"
+);
+
+function renderFavorites() {
+	const favContainer = document.getElementById("favoritePresetsList");
+	if (!favContainer) return;
+
+	if (favoritePresets.length === 0) {
+		favContainer.innerHTML = `<div class="favorites-empty">No pinned presets yet. Star your favorite headphone presets to pin them here for quick switching!</div>`;
+		return;
+	}
+
+	favContainer.innerHTML = "";
+	favoritePresets.forEach((preset) => {
+		const div = document.createElement("div");
+		div.className = "favorite-item";
+		
+		const nameSpan = document.createElement("span");
+		nameSpan.className = "favorite-name";
+		nameSpan.innerText = preset.name;
+		nameSpan.title = preset.name;
+		nameSpan.addEventListener("click", async () => {
+			await loadPreset(preset);
+		});
+
+		const deleteBtn = document.createElement("button");
+		deleteBtn.className = "favorite-delete-btn";
+		deleteBtn.innerHTML = "✖";
+		deleteBtn.title = "Remove from favorites";
+		deleteBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			toggleFavorite(preset);
+		});
+
+		div.appendChild(nameSpan);
+		div.appendChild(deleteBtn);
+		favContainer.appendChild(div);
+	});
+}
+
+function toggleFavorite(preset: AutoEqPreset) {
+	const index = favoritePresets.findIndex((p) => p.path === preset.path);
+	if (index > -1) {
+		favoritePresets.splice(index, 1);
+		log(`[System] Removed from favorites: ${preset.name}`);
+	} else {
+		favoritePresets.push(preset);
+		log(`[System] Added to favorites: ${preset.name}`);
+	}
+	localStorage.setItem("aura_favorite_presets", JSON.stringify(favoritePresets));
+	renderFavorites();
+	
+	// Re-render search results if open to update star state
+	if (searchInput && searchInput.value.trim()) {
+		renderSearchResults(searchInput.value);
+	}
+}
+
+function isFavorite(preset: AutoEqPreset): boolean {
+	return favoritePresets.some((p) => p.path === preset.path);
+}
+
+/**
+ * SUPPORTED DEVICES MODAL LOGIC
+ */
+const btnShowSupportedDacs = document.getElementById("btnShowSupportedDacs");
+const modalSupportedDacs = document.getElementById("modalSupportedDacs");
+const btnCloseModal = document.getElementById("btnCloseModal");
+const supportedDacsList = document.getElementById("supportedDacsList");
+
+btnShowSupportedDacs?.addEventListener("click", (e) => {
+	e.preventDefault();
+	if (modalSupportedDacs) {
+		modalSupportedDacs.classList.remove("hidden");
+		renderSupportedDacsList();
+	}
+});
+
+btnCloseModal?.addEventListener("click", () => {
+	modalSupportedDacs?.classList.add("hidden");
+});
+
+// Close modal on click outside content
+window.addEventListener("click", (e) => {
+	if (e.target === modalSupportedDacs) {
+		modalSupportedDacs?.classList.add("hidden");
+	}
+});
+
+function renderSupportedDacsList() {
+	if (!supportedDacsList) return;
+	supportedDacsList.innerHTML = "";
+	KNOWN_DACS.forEach((dac) => {
+		const div = document.createElement("div");
+		div.className = "dac-list-item";
+		div.innerHTML = `
+			<div class="dac-list-item-header">
+				<h4 class="dac-list-name">${dac.name}</h4>
+				<span class="dac-list-protocol badge badge-online">${dac.protocol}</span>
+			</div>
+			<div class="dac-list-details">
+				<p class="dac-list-chipset"><strong>Chipset:</strong> ${dac.chipset}</p>
+				<p class="dac-list-desc">${dac.description}</p>
+			</div>
+		`;
+		supportedDacsList.appendChild(div);
+	});
+}

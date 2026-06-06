@@ -7,8 +7,9 @@ import {
 	VID_SAVITECH_ALT,
 	VID_SAVITECH_OFFICIAL,
 	VID_AUDIOCULAR,
+	KNOWN_DACS,
 } from "./constants.ts";
-import { readDeviceParams, setupListener, syncToDevice } from "./dsp.ts";
+import { readDeviceParams, setupListener, syncToDevice, queueRealtimeBandWrite } from "./dsp.ts";
 import { enableControls, log, updateGlobalGainUI, refreshStripUI } from "./helpers.ts";
 import type { Band, EQ } from "./main.ts";
 import { renderPEQ, resizeCanvas } from "./peq.ts";
@@ -19,6 +20,61 @@ import { renderPEQ, resizeCanvas } from "./peq.ts";
 let device: HIDDevice | null = null;
 let globalGainState: number = 0;
 let eqState: EQ = defaultEqState();
+let lastAppliedEqName: string = localStorage.getItem("last_applied_eq") || "Flat Profile (Default)";
+
+export function getLastAppliedEqName() {
+	return lastAppliedEqName;
+}
+
+export function setLastAppliedEqName(name: string) {
+	lastAppliedEqName = name;
+	localStorage.setItem("last_applied_eq", name);
+	updateLastAppliedEqUI();
+}
+
+export function updateLastAppliedEqUI() {
+	const lastEqEl = document.getElementById("lastAppliedEqDisplay");
+	if (lastEqEl) {
+		lastEqEl.innerText = lastAppliedEqName;
+	}
+}
+
+export function identifyConnectedDac(dev: HIDDevice) {
+	const match = KNOWN_DACS.find(
+		(d) =>
+			d.vid === dev.vendorId &&
+			(d.pid === undefined || d.pid === dev.productId)
+	);
+
+	const badgeContainer = document.getElementById("dacBadgeContainer");
+	const badgeName = document.getElementById("dacBadgeName");
+	const badgeChipset = document.getElementById("dacBadgeChipset");
+	const badgeDesc = document.getElementById("dacBadgeDesc");
+
+	if (match) {
+		log(`[System] DAC Identified: ${match.name} (${match.chipset}) using ${match.protocol} protocol`);
+		if (badgeContainer) badgeContainer.classList.remove("hidden");
+		if (badgeName) badgeName.innerText = match.name;
+		if (badgeChipset) badgeChipset.innerText = `Chipset: ${match.chipset} | Protocol: ${match.protocol}`;
+		if (badgeDesc) badgeDesc.innerText = match.description;
+	} else {
+		// Fallback by Vendor ID alone
+		const fallbackMatch = KNOWN_DACS.find((d) => d.vid === dev.vendorId);
+		if (fallbackMatch) {
+			log(`[System] DAC Compatible Match: Generic ${fallbackMatch.name} device`);
+			if (badgeContainer) badgeContainer.classList.remove("hidden");
+			if (badgeName) badgeName.innerText = `${dev.productName || "Compatible Device"}`;
+			if (badgeChipset) badgeChipset.innerText = `Chipset: ${fallbackMatch.chipset} (Detected via VID) | Protocol: ${fallbackMatch.protocol}`;
+			if (badgeDesc) badgeDesc.innerText = fallbackMatch.description;
+		} else {
+			log(`[System] Connected to unrecognized DAC (VID: 0x${dev.vendorId.toString(16).toUpperCase()})`);
+			if (badgeContainer) badgeContainer.classList.remove("hidden");
+			if (badgeName) badgeName.innerText = dev.productName || "Generic WebHID DAC";
+			if (badgeChipset) badgeChipset.innerText = `VID: 0x${dev.vendorId.toString(16).toUpperCase()} | PID: 0x${dev.productId.toString(16).toUpperCase()}`;
+			if (badgeDesc) badgeDesc.innerText = "Generic audio controller. Using standard Savitech compatibility mode.";
+		}
+	}
+}
 
 /**
  * INITIALIZATION
@@ -26,6 +82,7 @@ let eqState: EQ = defaultEqState();
 export function initState() {
 	renderUI(eqState);
 	resizeCanvas();
+	updateLastAppliedEqUI();
 }
 
 /**
@@ -210,6 +267,9 @@ export async function connectToDevice() {
 			`Successfully connected to: ${device.productName || "Unknown DAC"} (VID: 0x${device.vendorId.toString(16).toUpperCase()}, PID: 0x${device.productId.toString(16).toUpperCase()})`,
 		);
 
+		// Identify DAC automatically
+		identifyConnectedDac(device);
+
 		// Update UI elements for connection state
 		const statusBadge = document.getElementById("statusBadge");
 		if (statusBadge) {
@@ -254,6 +314,9 @@ export async function disconnectDevice() {
 		await device.close();
 		device = null;
 		
+		const badgeContainer = document.getElementById("dacBadgeContainer");
+		if (badgeContainer) badgeContainer.classList.add("hidden");
+
 		const statusBadge = document.getElementById("statusBadge");
 		if (statusBadge) {
 			statusBadge.innerText = "OFFLINE";
@@ -294,6 +357,8 @@ export async function resetToDefaults() {
 	setGlobalGain(0);
 	renderUI(eqState);
 
+	setLastAppliedEqName("Flat Profile (Default)");
+
 	await syncToDevice();
 	log("Defaults applied and synced.");
 }
@@ -312,6 +377,12 @@ export function updateState(
 
 	setEQ(index, key as keyof Band, value);
 	renderUI(eqState);
+
+	setLastAppliedEqName("Custom Profile (Tweaked)");
+
+	if (device) {
+		queueRealtimeBandWrite(device, eqState[index]);
+	}
 }
 
 // Expose handlers for window scope trigger events

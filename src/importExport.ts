@@ -6,7 +6,9 @@ import {
 	renderUI,
 	setEqState,
 	setGlobalGainState,
+	setLastAppliedEqName,
 } from "./fn.ts";
+import { syncToDevice } from "./dsp.ts";
 import { log, updateGlobalGain } from "./helpers.ts";
 import type { EQ } from "./main.ts";
 
@@ -121,7 +123,7 @@ export async function importProfile(e: Event) {
 	if (!file) return;
 
 	const reader = new FileReader();
-	reader.onload = (event) => {
+	reader.onload = async (event) => {
 		try {
 			const result = event.target?.result as string;
 			let profile: ProfileData;
@@ -146,7 +148,17 @@ export async function importProfile(e: Event) {
 			updateGlobalGain(profile.globalGain);
 			renderUI(profile.bands);
 
-			log("Profile imported successfully. Click 'SYNC' to apply to the DAC.");
+			const name = `Imported: ${file.name.replace(/\.[^/.]+$/, "")}`;
+			setLastAppliedEqName(name);
+
+			const device = getDevice();
+			if (device) {
+				log(`Syncing imported profile to DAC...`);
+				await syncToDevice();
+				log(`Synced: ${name}`);
+			} else {
+				log("Profile imported successfully. Connect DAC and click SYNC to apply.");
+			}
 		} catch (err) {
 			log(`Import Error: ${(err as Error).message}`);
 			console.error(err);
@@ -161,8 +173,9 @@ export async function importProfile(e: Event) {
 /**
  * Load EQ profile from raw text content
  * @param content The raw txt preset content
+ * @param presetName Name of the preset being loaded
  */
-export function loadProfileFromText(content: string) {
+export async function loadProfileFromText(content: string, presetName?: string) {
 	try {
 		const profile = parseTextProfile(content);
 
@@ -174,7 +187,17 @@ export function loadProfileFromText(content: string) {
 		updateGlobalGain(profile.globalGain);
 		renderUI(profile.bands);
 
-		log("AutoEq preset loaded. Click 'SYNC TO RAM' to apply settings to the DAC.");
+		const name = presetName || "Loaded Profile";
+		setLastAppliedEqName(name);
+
+		const device = getDevice();
+		if (device) {
+			log(`Syncing preset "${name}" to DAC...`);
+			await syncToDevice();
+			log(`Synced: ${name}`);
+		} else {
+			log(`Preset loaded. Connect DAC to sync.`);
+		}
 	} catch (err) {
 		log(`AutoEq Parsing Error: ${(err as Error).message}`);
 		console.error(err);
