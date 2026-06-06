@@ -11,15 +11,20 @@ Live Web App: **[https://mandy321.github.io/Audiocular-Aura/](https://mandy321.g
 ## ✨ Features
 
 * **Hardware-Level DSP Processing**: The audio filter logic is processed directly inside the DAC's integrated DSP chip.
+* **Verified Peaking & Shelving Filter Math**: Exact implementation of RBJ Audio EQ cookbook formulas for Peaking (`PK`), Low-Shelf (`LSQ`), and High-Shelf (`HSQ`) filters calculated and sent directly to the device.
+* **Instant Real-Time Sync**: No manual syncing required! Band parameters (Frequency, Q, Gain, Type, Enable state) are throttled (50ms window) and sent instantly to the DAC as you drag canvas handles, update select dropdowns, or adjust sliders.
 * **Interactive Frequency Graph**: Drag and drop visual handles on a logarithmic grid to adjust Gain and Frequency, with real-time cumulative curve tracing.
-* **10 Configurable Bands**: Individual frequency, gain, and Q (filter width) settings supporting Peak (`PK`), Low Shelf (`LSQ`), and High Shelf (`HSQ`) filter types.
+* **10 Configurable Bands**: Individual frequency, gain, and Q (filter width) settings supporting Peak, Low Shelf, and High Shelf filter types.
+* **Automatic DAC Chipset & Model Identification**: Connects and automatically matches Vendor and Product IDs against a built-in database to show a live detailed info card (such as `Audiocular Aura`, `Moondrop Dawn Pro`, `FiiO JA11`, etc.) containing the device description and chipset/protocol architecture.
+* **Pinned Favorites List**: Click the star `★` icon next to search items in the AutoEq index to save headphone models to your pinned favorites panel for rapid switching.
+* **Supported Devices Database**: A searchable modal listing all compatible controllers (Savitech, Comtrue, FiiO) with their chipset details.
 * **Profile Import/Export**:
   * Save and load settings using standard `.json` configuration files.
   * Import standard **AutoEq text profiles** (compatible with presets exported from [AutoEq.app](https://autoeq.app) or [Squiglink](https://squig.link)).
 * **Memory Persistence**:
-  * **Sync to RAM**: Apply settings instantly in real-time to hear your changes.
+  * **Sync to RAM**: Applies settings instantly to hear your changes.
   * **Save to Flash**: Write the settings permanently to the DAC's internal flash memory so they persist when you connect the DAC to other devices (like phones, tablets, or consoles).
-* **Universal USB Override Connection**: If your specific DAC revision or batch reports different USB identification codes, or if you are using another compatible brand (Moondrop, Tanchjim, FiiO, JCally, Fosi, iBasso), you can input a custom hex Vendor ID (VID) and Product ID (PID) to bypass connections.
+* **Universal USB Override Connection**: If your specific DAC revision or batch reports different USB identification codes, enter a custom hex Vendor ID (VID) and Product ID (PID) to bypass connections.
 
 ---
 
