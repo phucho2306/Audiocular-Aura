@@ -16,6 +16,11 @@ Live Web App: **[https://mandy321.github.io/Audiocular-Aura/](https://mandy321.g
 * **Interactive Frequency Graph**: Drag and drop visual handles on a logarithmic grid to adjust Gain and Frequency, with real-time cumulative curve tracing.
 * **10 Configurable Bands**: Individual frequency, gain, and Q (filter width) settings supporting Peak, Low Shelf, and High Shelf filter types.
 * **Automatic DAC Chipset & Model Identification**: Connects and automatically matches Vendor and Product IDs against a built-in database to show a live detailed info card (such as `Audiocular Aura`, `Moondrop Dawn Pro`, `FiiO JA11`, etc.) containing the device description and chipset/protocol architecture.
+* **Offline-Capable PWA**: Fully installable as a Progressive Web App (PWA) on desktop or mobile, with complete offline capabilities powered by a stale-while-revalidate service worker cache.
+* **Real-Time Device Info Panel**: Displays live stats for the connected DAC including firmware version, operational DSP sample rate, and active PEQ slots used (`0` to `10`).
+* **Reset All Bands to Flat**: A one-click button to reset all 10 EQ bands to neutral baseline values (`1000 Hz`, `0 dB`, and Q=`1.0`) with confirmation.
+* **Verbose USB Packet Console**: Displays live formatted hex payloads for all outgoing (`[TX]`) and incoming (`[RX]`) WebHID reports, with smart Feature Report control transfer fallbacks.
+* **Ergonomic DAW-Style Layout**: A wider `1400px` layout with vertical sliders, side-by-side band strips, and wider input boxes that support up to 5-digit frequency fields (such as `16000` Hz) without visual truncation.
 * **Pinned Favorites List**: Click the star `★` icon next to search items in the AutoEq index to save headphone models to your pinned favorites panel for rapid switching.
 * **Supported Devices Database**: A searchable modal listing all compatible controllers (Savitech, Comtrue, FiiO) with their chipset details.
 * **Profile Import/Export**:
