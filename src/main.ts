@@ -16,6 +16,7 @@ import {
 	resetToDefaults,
 	resetToFlat,
 	getDevice,
+	autoConnectDevice,
 } from "./fn.ts";
 import { setGlobalGain, log } from "./helpers.ts";
 import { exportProfile, importProfile } from "./importExport.ts";
@@ -39,9 +40,25 @@ export type EQ = Band[];
 
 // Initialize state and render PEQ on page load
 initState();
-setTimeout(() => {
+setTimeout(async () => {
 	renderFavorites();
+	await autoConnectDevice();
 }, 0);
+
+// USB Hot-Plug Auto Detection listeners
+if (navigator.hid) {
+	navigator.hid.addEventListener("connect", async (e) => {
+		log(`[System] USB Device plugged in: ${e.device.productName || "DAC"}`);
+		await autoConnectDevice();
+	});
+	navigator.hid.addEventListener("disconnect", (e) => {
+		const currentDev = getDevice();
+		if (currentDev && currentDev.vendorId === e.device.vendorId && currentDev.productId === e.device.productId) {
+			log(`[System] USB Device unplugged: ${e.device.productName || "DAC"}`);
+			disconnectDevice();
+		}
+	});
+}
 
 /**
  * CONNECTION LOGIC

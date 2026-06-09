@@ -86,6 +86,12 @@ export function identifyConnectedDac(dev: HIDDevice) {
 	
 	const infoFirmware = document.getElementById("infoFirmware");
 	if (infoFirmware) infoFirmware.innerText = "Active";
+
+	const infoVid = document.getElementById("infoVid");
+	if (infoVid) infoVid.innerText = `0x${dev.vendorId.toString(16).toUpperCase().padStart(4, '0')}`;
+	
+	const infoPid = document.getElementById("infoPid");
+	if (infoPid) infoPid.innerText = `0x${dev.productId.toString(16).toUpperCase().padStart(4, '0')}`;
 }
 
 /**
@@ -291,8 +297,8 @@ export async function connectToDevice() {
 		const statusBadge = document.getElementById("statusBadge");
 		if (statusBadge) {
 			statusBadge.innerText = "ONLINE";
-			statusBadge.classList.remove("offline");
-			statusBadge.classList.add("online");
+			statusBadge.classList.remove("badge-offline");
+			statusBadge.classList.add("badge-online");
 		}
 		
 		const btnConnect = document.getElementById("btnConnect");
@@ -340,8 +346,8 @@ export async function disconnectDevice() {
 		const statusBadge = document.getElementById("statusBadge");
 		if (statusBadge) {
 			statusBadge.innerText = "OFFLINE";
-			statusBadge.classList.remove("online");
-			statusBadge.classList.add("offline");
+			statusBadge.classList.remove("badge-online");
+			statusBadge.classList.add("badge-offline");
 		}
 		
 		const btnConnect = document.getElementById("btnConnect");
@@ -433,3 +439,52 @@ export function updateState(
 
 // Expose handlers for window scope trigger events
 (window as any).updateState = updateState;
+
+/**
+ * Scan for previously authorized WebHID devices and connect automatically
+ */
+export async function autoConnectDevice() {
+	if (!navigator.hid) return;
+	try {
+		const devices = await navigator.hid.getDevices();
+		if (devices.length === 0) return;
+
+		device = devices[0];
+		await device.open();
+
+		log(`[System] Auto-connected to previously authorized device: ${device.productName || "Unknown DAC"}`);
+		identifyConnectedDac(device);
+
+		const statusBadge = document.getElementById("statusBadge");
+		if (statusBadge) {
+			statusBadge.innerText = "ONLINE";
+			statusBadge.classList.remove("badge-offline");
+			statusBadge.classList.add("badge-online");
+		}
+
+		const btnConnect = document.getElementById("btnConnect");
+		if (btnConnect) btnConnect.style.display = "none";
+
+		const disconnectSection = document.getElementById("disconnectSection");
+		if (disconnectSection) disconnectSection.style.display = "flex";
+
+		enableControls(true);
+		setupListener(device);
+
+		const nameUpper = (device.productName || "").toUpperCase();
+		const customVidEl = document.getElementById("customVid") as HTMLInputElement;
+		if (
+			device.vendorId === VID_SAVITECH ||
+			device.vendorId === VID_SAVITECH_ALT ||
+			device.vendorId === VID_SAVITECH_OFFICIAL ||
+			device.vendorId === VID_AUDIOCULAR ||
+			nameUpper.includes("JA11") ||
+			(customVidEl && customVidEl.value.trim() !== "")
+		) {
+			await readDeviceParams(device);
+		}
+	} catch (err) {
+		log(`[System] Auto-connect failed: ${(err as Error).message}`);
+	}
+}
+

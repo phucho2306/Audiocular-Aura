@@ -93,9 +93,12 @@ function parseTextProfile(content: string): ProfileData {
 				const q = parseFloat(filterMatch[6]);
 
 				// Normalize type names
-				let finalType = type;
-				if (type === "LS") finalType = "LSQ";
-				if (type === "HS") finalType = "HSQ";
+				let finalType = "PK";
+				if (type === "LS" || type === "LSC" || type === "LSQ") {
+					finalType = "LSQ";
+				} else if (type === "HS" || type === "HSC" || type === "HSQ") {
+					finalType = "HSQ";
+				}
 
 				bands[index] = {
 					...bands[index],

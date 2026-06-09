@@ -1786,7 +1786,8 @@ body.aura-app-theme {
 /* --- PWA Device Info Panel Styling --- */
 .device-info-details {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 16px;
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
