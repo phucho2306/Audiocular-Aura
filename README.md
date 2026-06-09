@@ -16,8 +16,11 @@ Live Web App: **[https://mandy321.github.io/Audiocular-Aura/](https://mandy321.g
 * **Interactive Frequency Graph**: Drag and drop visual handles on a logarithmic grid to adjust Gain and Frequency, with real-time cumulative curve tracing.
 * **10 Configurable Bands**: Individual frequency, gain, and Q (filter width) settings supporting Peak, Low Shelf, and High Shelf filter types.
 * **Automatic DAC Chipset & Model Identification**: Connects and automatically matches Vendor and Product IDs against a built-in database to show a live detailed info card (such as `Audiocular Aura`, `Moondrop Dawn Pro`, `FiiO JA11`, etc.) containing the device description and chipset/protocol architecture.
-* **Offline-Capable PWA**: Fully installable as a Progressive Web App (PWA) on desktop or mobile, with complete offline capabilities powered by a stale-while-revalidate service worker cache.
-* **Real-Time Device Info Panel**: Displays live stats for the connected DAC including firmware version, operational DSP sample rate, and active PEQ slots used (`0` to `10`).
+* **Offline-Capable PWA with In-App Installation**: Fully installable as a Progressive Web App (PWA) via a dedicated **"INSTALL APP"** button in the header, enabling complete offline operation using a stale-while-revalidate service worker cache.
+* **Real-Time Device Info Panel (with VID/PID)**: Displays live stats for the connected DAC including firmware version, operational DSP sample rate, active PEQ slots used (`0` to `10`), and hexadecimal USB Vendor ID (VID) and Product ID (PID).
+* **Automatic Connection & Hot-Plug Detection**: Auto-detects and connects to previously paired USB DACs on load. Listens to WebHID connection/disconnection events to automatically connect or disconnect in real-time when physical devices are plugged or unplugged.
+* **Vibrant Status Indicators**: Status badge changes to a glowing emerald green ONLINE state when connected and returns to a grey OFFLINE state when disconnected.
+* **AutoEq Filter Type Normalization**: Robust parsing normalizes all shelf filter variants (such as `LS`, `LSC`, `HS`, `HSC`) from imported AutoEq profiles to ensure they display clearly in the bands controller dropdowns.
 * **Reset All Bands to Flat**: A one-click button to reset all 10 EQ bands to neutral baseline values (`1000 Hz`, `0 dB`, and Q=`1.0`) with confirmation.
 * **Verbose USB Packet Console**: Displays live formatted hex payloads for all outgoing (`[TX]`) and incoming (`[RX]`) WebHID reports, with smart Feature Report control transfer fallbacks.
 * **Ergonomic DAW-Style Layout**: A wider `1400px` layout with vertical sliders, side-by-side band strips, and wider input boxes that support up to 5-digit frequency fields (such as `16000` Hz) without visual truncation.
