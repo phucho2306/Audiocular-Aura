@@ -1,0 +1,22 @@
+{
+  "name": "AuraPEQ - Audiocular Aura DSP Controller",
+  "short_name": "AuraPEQ",
+  "description": "Unlock and configure the hardware-level 10-band Parametric Equalizer (PEQ) on your Audiocular Aura & Multi-DAC DSP.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#8b5cf6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "./icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

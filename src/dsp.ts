@@ -16,7 +16,7 @@ import {
 	renderUI,
 	setGlobalGain,
 } from "./fn.ts";
-import { delay, log, refreshStripUI } from "./helpers.ts";
+import { delay, log, refreshStripUI, logTx, logRx } from "./helpers.ts";
 import type { Band } from "./main.ts";
 
 /**
@@ -24,7 +24,11 @@ import type { Band } from "./main.ts";
  */
 function getProtocol(device: HIDDevice) {
 	if (device.vendorId === VID_COMTRUE) return "MOONDROP";
-	if (device.vendorId === VID_FIIO) return "FIIO";
+	if (device.vendorId === VID_FIIO) {
+		const prodName = (device.productName || "").toUpperCase();
+		if (prodName.includes("JA11")) return "SAVITECH";
+		return "FIIO";
+	}
 	return "SAVITECH"; // Default (used by CB5100/Audiocular Aura)
 }
 
@@ -167,6 +171,7 @@ export function setupListener(device: HIDDevice) {
 	device.addEventListener("inputreport", (event) => {
 		const versionEl = document.getElementById("fwVersion");
 		const data = new Uint8Array(event.data.buffer);
+		logRx(event.reportId, data);
 		const cmd = data[1];
 
 		if (cmd === CMD_SAVI.VERSION) {
@@ -176,6 +181,8 @@ export function setupListener(device: HIDDevice) {
 				ver += String.fromCharCode(data[i]);
 			}
 			if (versionEl) versionEl.innerText = `FW: ${ver}`;
+			const infoFirmware = document.getElementById("infoFirmware");
+			if (infoFirmware) infoFirmware.innerText = ver;
 		} else if (cmd === CMD_SAVI.GAIN) {
 			const gain = new Int8Array([data[4]])[0];
 			setGlobalGain(gain);
@@ -544,16 +551,35 @@ async function sendPacketSavitech(device: HIDDevice, bytes: number[]) {
 	const p = new Uint8Array(size);
 	for (let i = 0; i < bytes.length; i++) p[i] = bytes[i];
 	
+	logTx(REPORT_ID_DEFAULT, p);
+	
 	try {
 		await device.sendReport(REPORT_ID_DEFAULT, p);
 	} catch (err) {
 		const errMsg = (err as Error).message || "";
+		log(`[TX Debug] sendReport ID=${REPORT_ID_DEFAULT} failed: ${errMsg}. Retrying sendFeatureReport...`);
+		try {
+			await device.sendFeatureReport(REPORT_ID_DEFAULT, p);
+			log(`[TX Debug] Success via sendFeatureReport ID=${REPORT_ID_DEFAULT}`);
+			return;
+		} catch (featErr) {
+			log(`[TX Debug] sendFeatureReport ID=${REPORT_ID_DEFAULT} failed: ${(featErr as Error).message}`);
+		}
+		
 		if ((err as Error).name === "NotAllowedError" || errMsg.includes("NotAllowedError")) {
 			try {
 				await device.sendReport(0, p);
+				log(`[TX Debug] Success via sendReport ID=0`);
 				return;
 			} catch (retryErr) {
-				log(`TX Retry Error (ID=0): ${(retryErr as Error).message}`);
+				log(`[TX Debug] sendReport ID=0 failed: ${(retryErr as Error).message}. Retrying sendFeatureReport ID=0...`);
+				try {
+					await device.sendFeatureReport(0, p);
+					log(`[TX Debug] Success via sendFeatureReport ID=0`);
+					return;
+				} catch (featRetryErr) {
+					log(`[TX Debug] sendFeatureReport ID=0 failed: ${(featRetryErr as Error).message}`);
+				}
 			}
 		}
 		log(`TX Error: ${errMsg}`);

@@ -14,6 +14,7 @@ import {
 	disconnectDevice,
 	initState,
 	resetToDefaults,
+	resetToFlat,
 	getDevice,
 } from "./fn.ts";
 import { setGlobalGain, log } from "./helpers.ts";
@@ -75,11 +76,24 @@ btnToggleCustomUsb?.addEventListener("click", () => {
 const btnReset = document.getElementById("btnReset");
 btnReset?.addEventListener("click", async () => resetToDefaults());
 
+const btnResetFlat = document.getElementById("btnResetFlat");
+btnResetFlat?.addEventListener("click", async () => {
+	if (confirm("Reset all 10 bands to flat neutral values (0 dB, 1000 Hz, Q = 1.0)?")) {
+		await resetToFlat();
+	}
+});
+
 /**
  * SYNC LOGIC
  */
 const btnSync = document.getElementById("btnSync");
 btnSync?.addEventListener("click", async () => syncToDevice());
+
+const btnSendToDevice = document.getElementById("btnSendToDevice");
+btnSendToDevice?.addEventListener("click", async () => {
+	log("[System] Force-sending entire EQ profile to device...");
+	await syncToDevice();
+});
 
 /**
  * FLASH WRITE LOGIC
@@ -563,3 +577,18 @@ function renderSupportedDacsList() {
 		supportedDacsList.appendChild(div);
 	});
 }
+
+// Register Progressive Web App Service Worker
+if ("serviceWorker" in navigator) {
+	window.addEventListener("load", () => {
+		navigator.serviceWorker
+			.register("./sw.js")
+			.then((reg) => {
+				console.log("[PWA] Service Worker registered successfully: ", reg.scope);
+			})
+			.catch((err) => {
+				console.error("[PWA] Service Worker registration failed: ", err);
+			});
+	});
+}
+

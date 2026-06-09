@@ -95,3 +95,20 @@ export function log(msg: string) {
  * @param ms Milliseconds to delay
  */
 export const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Log outgoing raw USB packet bytes in hex
+ */
+export function logTx(reportId: number, bytes: Uint8Array | number[]) {
+	const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+	log(`[TX] Report ID: 0x${reportId.toString(16).toUpperCase()} | Data: ${hex}`);
+}
+
+/**
+ * Log incoming raw USB packet bytes in hex
+ */
+export function logRx(reportId: number, bytes: Uint8Array) {
+	const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+	log(`[RX] Report ID: 0x${reportId.toString(16).toUpperCase()} | Data: ${hex}`);
+}
+

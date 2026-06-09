@@ -63,7 +63,7 @@ body.aura-app-theme {
 
 .app-wrapper {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1400px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -153,8 +153,39 @@ body.aura-app-theme {
 /* --- Grid Dashboard --- */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 2.8fr 1.2fr;
+    grid-template-rows: auto auto auto;
+  }
+  .connection-card {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+  }
+  .visualizer-card {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+  }
+  .strips-card {
+    grid-column: 1 / 3;
+    grid-row: 2 / 3;
+  }
+  .bottom-grid {
+    grid-column: 1 / 3;
+    grid-row: 3 / 4;
+  }
+  .utility-card-full {
+    grid-column: 1 / 3;
+    grid-row: 4 / 5;
+  }
+  .log-card {
+    grid-column: 1 / 3;
+    grid-row: 5 / 6;
+  }
 }
 
 @media (max-width: 968px) {
@@ -198,7 +229,7 @@ body.aura-app-theme {
 
 /* --- Specific Cards Layouts --- */
 .connection-card {
-  grid-column: 1 / -1;
+  /* Controlled dynamically by media query */
 }
 
 .utilities-card {
@@ -1166,10 +1197,11 @@ body.aura-app-theme {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  padding: 6px 8px;
+  padding: 8px 6px;
   color: #ffffff;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   width: 100%;
+  min-width: 90px;
   text-align: center;
   outline: none;
   transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
@@ -1750,4 +1782,36 @@ body.aura-app-theme {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* --- PWA Device Info Panel Styling --- */
+.device-info-details {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.info-label {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+}
+
 

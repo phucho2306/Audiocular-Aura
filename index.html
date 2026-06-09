@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
   
   <!-- SEO Tags -->
   <title>AuraPEQ - Audiocular Aura & Multi-DAC DSP Parametric Equalizer Controller</title>
@@ -82,6 +84,21 @@
           </div>
           <div id="dacBadgeChipset" class="dac-badge-chipset">Savitech CB5100 + CS43131</div>
           <div id="dacBadgeDesc" class="dac-badge-desc">Premium portable DAC featuring zero-latency hardware PEQ.</div>
+          
+          <div class="device-info-details">
+            <div class="info-item">
+              <span class="info-label">Firmware:</span>
+              <span id="infoFirmware" class="info-value">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">DSP Sample Rate:</span>
+              <span id="infoSampleRate" class="info-value">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">PEQ Slots Active:</span>
+              <span id="infoSlots" class="info-value">0 / 10</span>
+            </div>
+          </div>
         </div>
 
         <!-- Custom USB Settings Accordion Form -->
@@ -135,6 +152,7 @@
           </div>
           <div class="button-group flex-wrap">
             <button id="btnReset" class="btn btn-secondary reset" disabled aria-label="Reset EQ to flat settings">RESET DEFAULTS</button>
+            <button id="btnResetFlat" class="btn btn-secondary reset" disabled aria-label="Reset all EQ bands to flat neutral values">RESET TO FLAT</button>
             <button id="btnImport" class="btn btn-secondary" aria-label="Import EQ Preset file">IMPORT PRESET</button>
             <button id="btnExport" class="btn btn-secondary" disabled aria-label="Export EQ Preset to file">EXPORT PRESET</button>
             <input type="file" id="fileInput" accept=".json,.txt" style="display: none;" aria-hidden="true">
@@ -174,6 +192,7 @@
           </div>
           <div class="sync-actions">
             <button id="btnSync" class="btn btn-accent action" disabled aria-label="Sync current EQ settings to DAC RAM">SYNC TO RAM (APPLY)</button>
+            <button id="btnSendToDevice" class="btn btn-primary action" disabled aria-label="Send current EQ settings to device">SEND TO DEVICE</button>
             <button id="btnFlash" class="btn btn-highlight action" disabled aria-label="Write current EQ settings permanently to DAC Flash">SAVE TO FLASH (PERMANENT)</button>
           </div>
         </section>

@@ -74,6 +74,18 @@ export function identifyConnectedDac(dev: HIDDevice) {
 			if (badgeDesc) badgeDesc.innerText = "Generic audio controller. Using standard Savitech compatibility mode.";
 		}
 	}
+
+	// Update device info details
+	const name = (dev.productName || "").toUpperCase();
+	const isMoondrop = dev.vendorId === VID_COMTRUE;
+	const isSavitech = dev.vendorId === VID_SAVITECH || dev.vendorId === VID_SAVITECH_ALT || dev.vendorId === VID_SAVITECH_OFFICIAL || dev.vendorId === VID_AUDIOCULAR || name.includes("JA11");
+	const sampleRateStr = (isSavitech || isMoondrop) ? "96 kHz" : "48 kHz";
+	
+	const infoSampleRate = document.getElementById("infoSampleRate");
+	if (infoSampleRate) infoSampleRate.innerText = sampleRateStr;
+	
+	const infoFirmware = document.getElementById("infoFirmware");
+	if (infoFirmware) infoFirmware.innerText = "Active";
 }
 
 /**
@@ -149,6 +161,11 @@ export function renderUI(eqState: EQ) {
 		});
 	}
 
+	// Update PEQ slots count
+	const activeSlots = eqState.filter(b => b.enabled && b.gain !== 0).length;
+	const infoSlots = document.getElementById("infoSlots");
+	if (infoSlots) infoSlots.innerText = `${activeSlots} / 10`;
+
 	// 2. Render or Sync the 8 EQ Strips side-by-side
 	const stripsContainer = document.getElementById("eqStrips");
 	if (stripsContainer) {
@@ -174,20 +191,20 @@ export function renderUI(eqState: EQ) {
 							oninput="window.updateState(${i}, 'gain', this.value)" ${device ? "" : "disabled"} class="vertical-slider">
 						<div class="gain-input-wrapper">
 							<input type="number" value="${band.gain}" step="0.5" min="-12" max="12"
-								onchange="window.updateState(${i}, 'gain', this.value)" id="num-gain-${i}" ${device ? "" : "disabled"} class="strip-input font-mono">
+								onchange="window.updateState(${i}, 'gain', this.value)" id="num-gain-${i}" ${device ? "" : "disabled"} class="strip-input font-mono" size="6">
 						</div>
 					</div>
 
 					<div class="strip-field">
 						<label class="strip-field-label">Freq (Hz)</label>
 						<input type="number" value="${band.freq}" min="20" max="20000" step="1"
-							onchange="window.updateState(${i}, 'freq', this.value)" id="num-freq-${i}" ${device ? "" : "disabled"} class="strip-input font-mono">
+							onchange="window.updateState(${i}, 'freq', this.value)" id="num-freq-${i}" ${device ? "" : "disabled"} class="strip-input font-mono" size="6">
 					</div>
 
 					<div class="strip-field">
 						<label class="strip-field-label">Q Factor</label>
 						<input type="number" value="${band.q}" min="0.1" max="10" step="0.05"
-							onchange="window.updateState(${i}, 'q', this.value)" id="num-q-${i}" ${device ? "" : "disabled"} class="strip-input font-mono">
+							onchange="window.updateState(${i}, 'q', this.value)" id="num-q-${i}" ${device ? "" : "disabled"} class="strip-input font-mono" size="6">
 					</div>
 
 					<div class="strip-field">
@@ -286,15 +303,18 @@ export async function connectToDevice() {
 
 		enableControls(true);
 
-		// Support parameter reading for Savitech-based DACs
+		setupListener(device);
+
+		// Support parameter reading for Savitech-based DACs (including FiiO JA11)
+		const nameUpper = (device.productName || "").toUpperCase();
 		if (
 			device.vendorId === VID_SAVITECH ||
 			device.vendorId === VID_SAVITECH_ALT ||
 			device.vendorId === VID_SAVITECH_OFFICIAL ||
 			device.vendorId === VID_AUDIOCULAR ||
+			nameUpper.includes("JA11") ||
 			(customVidEl && customVidEl.value.trim() !== "") // Allow reading for custom-defined Savitech variants
 		) {
-			setupListener(device);
 			await readDeviceParams(device);
 		} else {
 			log("Note: Parameter reading is only supported for Savitech-based devices. Starting with a flat profile.");
@@ -361,6 +381,32 @@ export async function resetToDefaults() {
 
 	await syncToDevice();
 	log("Defaults applied and synced.");
+}
+
+/**
+ * Reset all bands and gain to a flat neutral state (0dB, Freq=1000Hz, Q=1.0) and sync
+ */
+export async function resetToFlat() {
+	log("[System] Resetting all bands to flat neutral values...");
+
+	eqState = eqState.map((_, i) => ({
+		index: i,
+		freq: 1000,
+		gain: 0,
+		q: 1.0,
+		type: "PK",
+		enabled: true,
+	})) as EQ;
+
+	setGlobalGain(0);
+	renderUI(eqState);
+
+	setLastAppliedEqName("Flat Profile (Neutral)");
+
+	if (device) {
+		await syncToDevice();
+	}
+	log("Flat neutral profile applied and synced.");
 }
 
 /**
