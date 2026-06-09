@@ -1,4 +1,4 @@
-const CACHE_NAME = "aurapeq-cache-v4";
+const CACHE_NAME = "aurapeq-cache-v5";
 const ASSETS_TO_CACHE = [
 	"./",
 	"./index.html",
@@ -49,7 +49,7 @@ self.addEventListener("fetch", (event) => {
 	}
 
 	event.respondWith(
-		caches.match(event.request).then((cachedResponse) => {
+		caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
 			if (cachedResponse) {
 				// Return cached response, but fetch in background to update cache (stale-while-revalidate)
 				fetch(event.request).then((networkResponse) => {

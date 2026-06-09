@@ -11,13 +11,13 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "icon-192.png?v=4",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "icon-512.png",
+      "src": "icon-512.png?v=4",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
@@ -25,7 +25,7 @@
   ],
   "screenshots": [
     {
-      "src": "screenshots/desktop.jpg",
+      "src": "screenshots/desktop.jpg?v=4",
       "sizes": "1024x1024",
       "type": "image/jpeg",
       "form_factor": "wide",

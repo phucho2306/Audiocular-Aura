@@ -605,7 +605,7 @@ if ("serviceWorker" in navigator) {
 		// Update manifest link dynamically to use the absolute-relative path
 		const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
 		if (manifestLink) {
-			manifestLink.href = basePath + "manifest.json";
+			manifestLink.href = basePath + "manifest.json?v=4";
 		}
 
 		navigator.serviceWorker
