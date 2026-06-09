@@ -598,10 +598,9 @@ function renderSupportedDacsList() {
 // Register Progressive Web App Service Worker
 if ("serviceWorker" in navigator) {
 	window.addEventListener("load", () => {
-		// Calculate the base path dynamically to avoid trailing slash issues in GitHub Pages subfolders
-		const basePath = window.location.pathname.endsWith("/")
-			? window.location.pathname
-			: window.location.pathname + "/";
+		// Calculate the base path dynamically to handle subfolders and index.html correctly
+		const path = window.location.pathname;
+		const basePath = path.includes("/Audiocular-Aura") ? "/Audiocular-Aura/" : "/";
 
 		// Update manifest link dynamically to use the absolute-relative path
 		const manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
