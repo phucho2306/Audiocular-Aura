@@ -609,3 +609,35 @@ if ("serviceWorker" in navigator) {
 	});
 }
 
+// In-app PWA installation trigger
+let deferredPrompt: any = null;
+const btnInstallApp = document.getElementById("btnInstallApp");
+
+window.addEventListener("beforeinstallprompt", (e) => {
+	e.preventDefault();
+	deferredPrompt = e;
+	if (btnInstallApp) {
+		btnInstallApp.classList.remove("hidden");
+	}
+});
+
+btnInstallApp?.addEventListener("click", async () => {
+	if (!deferredPrompt) return;
+	deferredPrompt.prompt();
+	const { outcome } = await deferredPrompt.userChoice;
+	log(`[PWA] Installation prompt response: ${outcome}`);
+	deferredPrompt = null;
+	if (btnInstallApp) {
+		btnInstallApp.classList.add("hidden");
+	}
+});
+
+window.addEventListener("appinstalled", () => {
+	log("[PWA] AuraPEQ has been installed successfully!");
+	if (btnInstallApp) {
+		btnInstallApp.classList.add("hidden");
+	}
+	deferredPrompt = null;
+});
+
+
