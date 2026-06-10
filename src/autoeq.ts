@@ -35,44 +35,53 @@ export async function getAutoEqPresets(forceRefresh = false): Promise<AutoEqPres
 		}
 	}
 
-	// 2. Fetch fresh index from GitHub API
-	log("Fetching AutoEq online database index from GitHub...");
+	// 2. Fetch INDEX.md from Raw CDN
+	log("Fetching AutoEq online database index...");
 	
 	try {
 		const response = await fetch(
-			"https://api.github.com/repos/jaakkopasanen/AutoEq/git/trees/master?recursive=1"
+			"https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/INDEX.md"
 		);
 
 		if (!response.ok) {
-			throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+			throw new Error(`Failed to fetch database index: ${response.status} ${response.statusText}`);
 		}
 
-		const data = await response.json();
-		if (!data.tree || !Array.isArray(data.tree)) {
-			throw new Error("Invalid response tree structure from GitHub API");
+		const text = await response.text();
+		const lines = text.split(/\r?\n/);
+		const presets: AutoEqPreset[] = [];
+
+		// Match pattern: - [Model Name](./relativePath)
+		const regex = /^-\s+\[(.*?)\]\(\.\/(.*?)\)/;
+
+		for (const line of lines) {
+			const match = line.trim().match(regex);
+			if (match) {
+				const model = match[1];
+				const relPathEscaped = match[2];
+				const decodedPath = decodeURIComponent(relPathEscaped);
+				
+				const parts = decodedPath.split("/");
+				if (parts.length >= 2) {
+					const source = parts[0]; // e.g. "oratory1990", "crinacle"
+					const folderName = parts[parts.length - 1]; // Last directory name
+					
+					// Reconstruct full path that jaakkopasanen repository uses
+					const path = `results/${decodedPath}/${folderName} ParametricEQ.txt`;
+					
+					// Extract any targets or subfolders between the source and the model folder
+					const subfolders = parts.slice(1, parts.length - 1).join(" / ");
+					const name = `${model} (${source}${subfolders ? ` - ${subfolders}` : ""})`;
+
+					presets.push({ path, name });
+				}
+			}
 		}
 
-		// 3. Filter for ParametricEQ.txt profiles and map names
-		const presets: AutoEqPreset[] = data.tree
-			.filter((item: any) => item.path && item.path.endsWith("ParametricEQ.txt"))
-			.map((item: any) => {
-				const path: string = item.path;
-				const parts = path.split("/");
-				
-				const source = parts[1]; // e.g. "oratory1990", "Crinacle"
-				const model = parts[parts.length - 2]; // Folder name is the model name
-				
-				// Extract targets or subfolders if they exist (e.g. "harman_in-ear_2019-v2" or "in-ear")
-				const subfolders = parts.slice(2, parts.length - 2).join(" / ");
-				const name = `${model} (${source}${subfolders ? ` - ${subfolders}` : ""})`;
-
-				return { path, name };
-			});
-
-		// 4. Sort alphabetically
+		// 3. Sort alphabetically
 		presets.sort((a, b) => a.name.localeCompare(b.name));
 
-		// 5. Update local memory and cache
+		// 4. Update local memory and cache
 		cachedPresets = presets;
 		localStorage.setItem("autoeq_presets", JSON.stringify(presets));
 		localStorage.setItem("autoeq_presets_time", Date.now().toString());
@@ -114,7 +123,8 @@ export async function loadPreset(preset: AutoEqPreset) {
 	log(`Downloading preset: ${preset.name}...`);
 	
 	try {
-		const rawUrl = `https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/${encodeURIComponent(preset.path)}`;
+		const encodedParts = preset.path.split("/").map(encodeURIComponent).join("/");
+		const rawUrl = `https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/${encodedParts}`;
 		const response = await fetch(rawUrl);
 
 		if (!response.ok) {
