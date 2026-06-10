@@ -153,20 +153,38 @@
 
       <!-- Bottom Utilities Grid -->
       <div class="bottom-grid">
-        <!-- Preset and Preset File Utilities Card -->
-        <section class="control-card utilities-card">
-          <div class="card-header">
-            <h2 class="card-title">Preset Utilities</h2>
-            <p class="card-subtitle">Import or export preset profiles.</p>
-          </div>
-          <div class="button-group flex-wrap">
-            <button id="btnReset" class="btn btn-secondary reset" disabled aria-label="Reset EQ to flat settings">RESET DEFAULTS</button>
-            <button id="btnResetFlat" class="btn btn-secondary reset" disabled aria-label="Reset all EQ bands to flat neutral values">RESET TO FLAT</button>
-            <button id="btnImport" class="btn btn-secondary" aria-label="Import EQ Preset file">IMPORT PRESET</button>
-            <button id="btnExport" class="btn btn-secondary" disabled aria-label="Export EQ Preset to file">EXPORT PRESET</button>
-            <input type="file" id="fileInput" accept=".json,.txt" style="display: none;" aria-hidden="true">
-          </div>
-        </section>
+        <!-- Column Wrapper for Column 1 -->
+        <div class="bottom-col flex-col" style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- Preset and Preset File Utilities Card -->
+          <section class="control-card utilities-card" style="margin-bottom: 0; flex: 1;">
+            <div class="card-header">
+              <h2 class="card-title">Preset Utilities</h2>
+              <p class="card-subtitle">Import or export preset profiles.</p>
+            </div>
+            <div class="button-group flex-wrap">
+              <button id="btnReset" class="btn btn-secondary reset" disabled aria-label="Reset EQ to flat settings">RESET DEFAULTS</button>
+              <button id="btnResetFlat" class="btn btn-secondary reset" disabled aria-label="Reset all EQ bands to flat neutral values">RESET TO FLAT</button>
+              <button id="btnImport" class="btn btn-secondary" aria-label="Import EQ Preset file">IMPORT PRESET</button>
+              <button id="btnExport" class="btn btn-secondary" disabled aria-label="Export EQ Preset to file">EXPORT PRESET</button>
+              <input type="file" id="fileInput" accept=".json,.txt" style="display: none;" aria-hidden="true">
+            </div>
+          </section>
+
+          <!-- My Custom Profiles Card -->
+          <section class="control-card custom-profiles-card" style="flex: 1;">
+            <div class="card-header">
+              <h2 class="card-title">My Custom Profiles</h2>
+              <p class="card-subtitle">Save & load profiles from local memory.</p>
+            </div>
+            <div class="profile-save-wrapper" style="display: flex; gap: 10px; margin-bottom: 15px;">
+              <input type="text" id="customProfileName" class="premium-input" placeholder="Profile name..." style="flex: 1;">
+              <button id="btnSaveProfile" class="btn btn-primary" aria-label="Save custom profile">SAVE</button>
+            </div>
+            <div id="customProfilesList" class="custom-profiles-list">
+              <!-- Rendered dynamically -->
+            </div>
+          </section>
+        </div>
 
         <!-- AutoEq Online Database Card -->
         <section class="control-card autoeq-card">

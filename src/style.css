@@ -1816,4 +1816,87 @@ body.aura-app-theme {
   font-weight: 700;
 }
 
+/* Custom Profiles UI */
+.custom-profiles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.custom-profiles-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-profiles-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-profiles-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+.custom-profiles-empty {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 8px;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.custom-profile-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.custom-profile-item:hover {
+  background: rgba(139, 92, 246, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.custom-profile-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 8px;
+}
+
+.custom-profile-name:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.custom-profile-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.custom-profile-delete-btn:hover {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+
 

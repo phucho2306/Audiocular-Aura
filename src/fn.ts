@@ -10,7 +10,7 @@ import {
 	KNOWN_DACS,
 } from "./constants.ts";
 import { readDeviceParams, setupListener, syncToDevice, queueRealtimeBandWrite, getProtocol } from "./dsp.ts";
-import { enableControls, log, updateGlobalGainUI, refreshStripUI } from "./helpers.ts";
+import { enableControls, log, updateGlobalGainUI, refreshStripUI, updateGlobalGain } from "./helpers.ts";
 import type { Band, EQ } from "./main.ts";
 import { renderPEQ, resizeCanvas } from "./peq.ts";
 
@@ -101,6 +101,8 @@ export function initState() {
 	renderUI(eqState);
 	resizeCanvas();
 	updateLastAppliedEqUI();
+	loadCustomProfilesFromStorage();
+	renderCustomProfiles();
 }
 
 /**
@@ -556,4 +558,160 @@ export function adjustBandsForDevice(dev: HIDDevice | null) {
 		}
 	}
 }
+
+/**
+ * CUSTOM PROFILES PERSISTENT STORAGE MANAGEMENT
+ */
+export interface CustomProfile {
+	name: string;
+	globalGain: number;
+	bands: EQ;
+}
+
+let customProfiles: CustomProfile[] = [];
+
+export function loadCustomProfilesFromStorage() {
+	try {
+		const stored = localStorage.getItem("aura_custom_profiles");
+		if (stored) {
+			customProfiles = JSON.parse(stored);
+		} else {
+			customProfiles = [];
+		}
+	} catch (e) {
+		console.error("Failed to parse custom profiles from storage", e);
+		customProfiles = [];
+	}
+}
+
+export function saveCustomProfile(name: string) {
+	name = name.trim();
+	if (!name) {
+		alert("Please enter a profile name first.");
+		return;
+	}
+
+	const existingIndex = customProfiles.findIndex(
+		(p) => p.name.toLowerCase() === name.toLowerCase()
+	);
+
+	if (existingIndex > -1) {
+		const confirmOverwrite = confirm(
+			`A custom profile named "${name}" already exists. Do you want to overwrite it?`
+		);
+		if (!confirmOverwrite) return;
+	}
+
+	const profile: CustomProfile = {
+		name,
+		globalGain: globalGainState,
+		bands: JSON.parse(JSON.stringify(eqState)),
+	};
+
+	if (existingIndex > -1) {
+		customProfiles[existingIndex] = profile;
+	} else {
+		customProfiles.push(profile);
+	}
+
+	localStorage.setItem("aura_custom_profiles", JSON.stringify(customProfiles));
+	renderCustomProfiles();
+	log(`[System] Custom profile saved: ${name}`);
+}
+
+export function deleteCustomProfile(name: string) {
+	const confirmDelete = confirm(`Are you sure you want to delete "${name}"?`);
+	if (!confirmDelete) return;
+
+	customProfiles = customProfiles.filter((p) => p.name !== name);
+	localStorage.setItem("aura_custom_profiles", JSON.stringify(customProfiles));
+	renderCustomProfiles();
+	log(`[System] Custom profile deleted: ${name}`);
+}
+
+export async function loadCustomProfile(name: string) {
+	const profile = customProfiles.find((p) => p.name === name);
+	if (!profile) return;
+
+	log(`[System] Loading custom profile: ${profile.name}...`);
+
+	let importedBands = JSON.parse(JSON.stringify(profile.bands)) as EQ;
+	const currentBandsCount = eqState.length;
+
+	if (importedBands.length > currentBandsCount) {
+		log(`Note: Profile has ${importedBands.length} bands but current device only supports ${currentBandsCount} bands. Keeping the first ${currentBandsCount} bands.`);
+		importedBands = importedBands.slice(0, currentBandsCount);
+	} else if (importedBands.length < currentBandsCount) {
+		importedBands = [
+			...importedBands,
+			...JSON.parse(JSON.stringify(eqState.slice(importedBands.length)))
+		];
+	}
+
+	// Normalize indices
+	importedBands.forEach((band, idx) => {
+		band.index = idx;
+	});
+
+	// Re-create DOM elements for strips
+	const stripsContainer = document.getElementById("eqStrips");
+	if (stripsContainer) {
+		stripsContainer.innerHTML = "";
+	}
+
+	eqState = importedBands;
+	globalGainState = profile.globalGain;
+
+	// Update UI and send preamp packet
+	await updateGlobalGain(profile.globalGain);
+	renderUI(eqState);
+
+	setLastAppliedEqName(`Profile: ${profile.name}`);
+
+	if (device) {
+		log(`Syncing profile to DAC...`);
+		await syncToDevice();
+		log(`Synced: ${profile.name}`);
+	} else {
+		log("Profile loaded successfully. Connect DAC and click SYNC to apply.");
+	}
+}
+
+export function renderCustomProfiles() {
+	const container = document.getElementById("customProfilesList");
+	if (!container) return;
+
+	if (customProfiles.length === 0) {
+		container.innerHTML = `<div class="custom-profiles-empty">No custom profiles saved yet. Enter a name above and click SAVE to store current settings!</div>`;
+		return;
+	}
+
+	container.innerHTML = "";
+	customProfiles.forEach((profile) => {
+		const div = document.createElement("div");
+		div.className = "custom-profile-item";
+
+		const nameSpan = document.createElement("span");
+		nameSpan.className = "custom-profile-name";
+		nameSpan.innerText = profile.name;
+		nameSpan.title = `Global Gain: ${profile.globalGain} dB\nClick to load profile`;
+		nameSpan.addEventListener("click", async () => {
+			await loadCustomProfile(profile.name);
+		});
+
+		const deleteBtn = document.createElement("button");
+		deleteBtn.className = "custom-profile-delete-btn";
+		deleteBtn.innerHTML = "✖";
+		deleteBtn.title = "Delete custom profile";
+		deleteBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			deleteCustomProfile(profile.name);
+		});
+
+		div.appendChild(nameSpan);
+		div.appendChild(deleteBtn);
+		container.appendChild(div);
+	});
+}
+
 

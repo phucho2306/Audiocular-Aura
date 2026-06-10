@@ -17,6 +17,7 @@ import {
 	resetToFlat,
 	getDevice,
 	autoConnectDevice,
+	saveCustomProfile,
 } from "./fn.ts";
 import { setGlobalGain, log } from "./helpers.ts";
 import { exportProfile, importProfile } from "./importExport.ts";
@@ -135,6 +136,30 @@ const fileInput = document.getElementById("fileInput");
 
 btnImport?.addEventListener("click", () => fileInput?.click());
 fileInput?.addEventListener("change", (e) => importProfile(e));
+
+/**
+ * MY CUSTOM PROFILES LOGIC
+ */
+const btnSaveProfile = document.getElementById("btnSaveProfile");
+const customProfileNameInput = document.getElementById("customProfileName") as HTMLInputElement;
+
+function handleSaveProfile() {
+	if (!customProfileNameInput) return;
+	const name = customProfileNameInput.value.trim();
+	if (!name) {
+		alert("Please enter a profile name first.");
+		return;
+	}
+	saveCustomProfile(name);
+	customProfileNameInput.value = "";
+}
+
+btnSaveProfile?.addEventListener("click", handleSaveProfile);
+customProfileNameInput?.addEventListener("keypress", (e: KeyboardEvent) => {
+	if (e.key === "Enter") {
+		handleSaveProfile();
+	}
+});
 
 /**
  * AUTOEQ ONLINE PRESETS INTEGRATION
