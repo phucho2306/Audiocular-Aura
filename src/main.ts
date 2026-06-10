@@ -144,14 +144,23 @@ const btnSaveProfile = document.getElementById("btnSaveProfile");
 const customProfileNameInput = document.getElementById("customProfileName") as HTMLInputElement;
 
 function handleSaveProfile() {
-	if (!customProfileNameInput) return;
-	const name = customProfileNameInput.value.trim();
-	if (!name) {
-		alert("Please enter a profile name first.");
-		return;
+	try {
+		log("[System] Click or Enter key detected on save profile.");
+		if (!customProfileNameInput) {
+			log("[System] Error: Input element customProfileName not found in DOM.");
+			return;
+		}
+		const name = customProfileNameInput.value.trim();
+		if (!name) {
+			alert("Please enter a profile name first.");
+			return;
+		}
+		saveCustomProfile(name);
+		customProfileNameInput.value = "";
+	} catch (err) {
+		log(`[System] Error in handleSaveProfile: ${(err as Error).message}`);
+		console.error(err);
 	}
-	saveCustomProfile(name);
-	customProfileNameInput.value = "";
 }
 
 btnSaveProfile?.addEventListener("click", handleSaveProfile);

@@ -574,49 +574,70 @@ export function loadCustomProfilesFromStorage() {
 	try {
 		const stored = localStorage.getItem("aura_custom_profiles");
 		if (stored) {
-			customProfiles = JSON.parse(stored);
+			const parsed = JSON.parse(stored);
+			if (Array.isArray(parsed)) {
+				customProfiles = parsed;
+			} else {
+				log("[System] Warning: Stored custom profiles was not an array. Initializing empty.");
+				customProfiles = [];
+			}
 		} else {
 			customProfiles = [];
 		}
 	} catch (e) {
 		console.error("Failed to parse custom profiles from storage", e);
+		log(`[System] Error loading custom profiles: ${(e as Error).message}`);
 		customProfiles = [];
 	}
 }
 
 export function saveCustomProfile(name: string) {
-	name = name.trim();
-	if (!name) {
-		alert("Please enter a profile name first.");
-		return;
-	}
+	try {
+		log(`[System] Saving custom profile: "${name}"...`);
+		name = name.trim();
+		if (!name) {
+			alert("Please enter a profile name first.");
+			return;
+		}
 
-	const existingIndex = customProfiles.findIndex(
-		(p) => p.name.toLowerCase() === name.toLowerCase()
-	);
+		if (!Array.isArray(customProfiles)) {
+			log("[System] Warning: customProfiles state was not an array. Resetting.");
+			customProfiles = [];
+		}
 
-	if (existingIndex > -1) {
-		const confirmOverwrite = confirm(
-			`A custom profile named "${name}" already exists. Do you want to overwrite it?`
+		const existingIndex = customProfiles.findIndex(
+			(p) => p.name.toLowerCase() === name.toLowerCase()
 		);
-		if (!confirmOverwrite) return;
+
+		if (existingIndex > -1) {
+			const confirmOverwrite = confirm(
+				`A custom profile named "${name}" already exists. Do you want to overwrite it?`
+			);
+			if (!confirmOverwrite) {
+				log("[System] Profile save cancelled by user.");
+				return;
+			}
+		}
+
+		const profile: CustomProfile = {
+			name,
+			globalGain: globalGainState,
+			bands: JSON.parse(JSON.stringify(eqState)),
+		};
+
+		if (existingIndex > -1) {
+			customProfiles[existingIndex] = profile;
+		} else {
+			customProfiles.push(profile);
+		}
+
+		localStorage.setItem("aura_custom_profiles", JSON.stringify(customProfiles));
+		renderCustomProfiles();
+		log(`[System] Custom profile saved: ${name}`);
+	} catch (err) {
+		log(`[System] Error saving custom profile: ${(err as Error).message}`);
+		console.error(err);
 	}
-
-	const profile: CustomProfile = {
-		name,
-		globalGain: globalGainState,
-		bands: JSON.parse(JSON.stringify(eqState)),
-	};
-
-	if (existingIndex > -1) {
-		customProfiles[existingIndex] = profile;
-	} else {
-		customProfiles.push(profile);
-	}
-
-	localStorage.setItem("aura_custom_profiles", JSON.stringify(customProfiles));
-	renderCustomProfiles();
-	log(`[System] Custom profile saved: ${name}`);
 }
 
 export function deleteCustomProfile(name: string) {
