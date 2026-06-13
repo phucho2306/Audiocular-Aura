@@ -72,9 +72,9 @@ export interface IdentifiedDac {
 	vid: number;
 	pid?: number;
 	name: string;
-	chipset: string;
+	chipset?: string;
 	protocol: "SAVITECH" | "MOONDROP" | "FIIO" | "FIIO_JA11";
-	description: string;
+	description?: string;
 }
 
 export const KNOWN_DACS: IdentifiedDac[] = [
@@ -107,6 +107,14 @@ export const KNOWN_DACS: IdentifiedDac[] = [
 		description: "Compatible alternate Savitech chip implementation.",
 	},
 	{
+		vid: 0x35d8,
+		pid: 0x011d,
+		name: "Moondrop Dawn Pro 2",
+		chipset: "Savitech DSP Core",
+		protocol: "SAVITECH",
+		description: "User confirmed working perfectly with Savitech protocol."
+	},
+	{
 		vid: VID_COMTRUE,
 		name: "Moondrop Dawn Pro / FreeDSP / May / Tanchjim Space Lite",
 		chipset: "Comtrue CT7601 (DSP Enabled)",
@@ -129,4 +137,9 @@ export const KNOWN_DACS: IdentifiedDac[] = [
 		description: "Supports FiiO's custom 10-band DSP PEQ protocol over proprietary raw HID commands.",
 	},
 ];
+
+export let activeDacs: IdentifiedDac[] = [...KNOWN_DACS];
+export function setActiveDacs(dacs: IdentifiedDac[]) {
+	activeDacs = dacs;
+}
 

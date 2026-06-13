@@ -7,7 +7,7 @@ import {
 	VID_SAVITECH_ALT,
 	VID_SAVITECH_OFFICIAL,
 	VID_AUDIOCULAR,
-	KNOWN_DACS,
+	activeDacs,
 } from "./constants.ts";
 import { readDeviceParams, setupListener, syncToDevice, queueRealtimeBandWrite, getProtocol } from "./dsp.ts";
 import { enableControls, log, updateGlobalGainUI, refreshStripUI, updateGlobalGain } from "./helpers.ts";
@@ -40,7 +40,7 @@ export function updateLastAppliedEqUI() {
 }
 
 export function identifyConnectedDac(dev: HIDDevice) {
-	const match = KNOWN_DACS.find(
+	const match = activeDacs.find(
 		(d) =>
 			d.vid === dev.vendorId &&
 			(d.pid === undefined || d.pid === dev.productId)
@@ -50,24 +50,27 @@ export function identifyConnectedDac(dev: HIDDevice) {
 	const badgeName = document.getElementById("dacBadgeName");
 	const badgeChipset = document.getElementById("dacBadgeChipset");
 	const badgeDesc = document.getElementById("dacBadgeDesc");
+	const reportUnknownContainer = document.getElementById("reportUnknownContainer");
 
 	if (match) {
-		log(`[System] DAC Identified: ${match.name} (${match.chipset}) using ${match.protocol} protocol`);
+		log(`[System] DAC Identified: ${match.name} (${match.chipset || "DSP Core"}) using ${match.protocol} protocol`);
 		if (badgeContainer) badgeContainer.classList.remove("hidden");
 		if (badgeName) badgeName.innerText = match.name;
-		if (badgeChipset) badgeChipset.innerText = `Chipset: ${match.chipset} | Protocol: ${match.protocol}`;
-		if (badgeDesc) badgeDesc.innerText = match.description;
+		if (badgeChipset) badgeChipset.innerText = `Chipset: ${match.chipset || "DSP Core"} | Protocol: ${match.protocol}`;
+		if (badgeDesc) badgeDesc.innerText = match.description || "Compatible hardware DAC controller.";
+		if (reportUnknownContainer) reportUnknownContainer.classList.add("hidden");
 	} else {
+		if (reportUnknownContainer) reportUnknownContainer.classList.remove("hidden");
+		
 		// Fallback by Vendor ID alone
-		const fallbackMatch = KNOWN_DACS.find((d) => d.vid === dev.vendorId);
+		const fallbackMatch = activeDacs.find((d) => d.vid === dev.vendorId);
 		if (fallbackMatch) {
 			log(`[System] DAC Compatible Match: Generic ${fallbackMatch.name} device`);
 			if (badgeContainer) badgeContainer.classList.remove("hidden");
 			if (badgeName) badgeName.innerText = `${dev.productName || "Compatible Device"}`;
-			if (badgeChipset) badgeChipset.innerText = `Chipset: ${fallbackMatch.chipset} (Detected via VID) | Protocol: ${fallbackMatch.protocol}`;
-			if (badgeDesc) badgeDesc.innerText = fallbackMatch.description;
+			if (badgeChipset) badgeChipset.innerText = `Chipset: ${fallbackMatch.chipset || "DSP Core"} (Detected via VID) | Protocol: ${fallbackMatch.protocol}`;
+			if (badgeDesc) badgeDesc.innerText = fallbackMatch.description || "Compatible hardware DAC controller.";
 		} else {
-			log(`[System] Connected to unrecognized DAC (VID: 0x${dev.vendorId.toString(16).toUpperCase()})`);
 			if (badgeContainer) badgeContainer.classList.remove("hidden");
 			if (badgeName) badgeName.innerText = dev.productName || "Generic WebHID DAC";
 			if (badgeChipset) badgeChipset.innerText = `VID: 0x${dev.vendorId.toString(16).toUpperCase()} | PID: 0x${dev.productId.toString(16).toUpperCase()}`;
@@ -103,6 +106,22 @@ export function initState() {
 	updateLastAppliedEqUI();
 	loadCustomProfilesFromStorage();
 	renderCustomProfiles();
+	
+	// Pre-fill Custom USB options from localStorage
+	try {
+		const stored = localStorage.getItem("customUsbOverride");
+		if (stored) {
+			const parsed = JSON.parse(stored);
+			const customVidEl = document.getElementById("customVid") as HTMLInputElement;
+			const customPidEl = document.getElementById("customPid") as HTMLInputElement;
+			const customProtocolEl = document.getElementById("customProtocol") as HTMLSelectElement;
+			if (customVidEl && parsed.vid) customVidEl.value = parsed.vid;
+			if (customPidEl && parsed.pid) customPidEl.value = parsed.pid;
+			if (customProtocolEl && parsed.protocol) customProtocolEl.value = parsed.protocol;
+		}
+	} catch (e) {
+		console.error("Failed to parse customUsbOverride from localStorage", e);
+	}
 }
 
 /**
@@ -292,18 +311,50 @@ export async function connectToDevice() {
 			return;
 		}
 
-		device = devices[0];
-		await device.open();
+		const dev = devices[0];
+		device = dev;
+		await dev.open();
 
-		log(
-			`Successfully connected to: ${device.productName || "Unknown DAC"} (VID: 0x${device.vendorId.toString(16).toUpperCase()}, PID: 0x${device.productId.toString(16).toUpperCase()})`,
+		// Log connection VID/PID immediately
+		const vidStr = dev.vendorId.toString(16).toLowerCase();
+		const pidStr = dev.productId.toString(16).toLowerCase();
+		const isKnown = activeDacs.some(
+			(d) => d.vid === dev.vendorId && (d.pid === undefined || d.pid === dev.productId)
 		);
+		const unknownSuffix = isKnown ? "" : " [Unknown device]";
+		log(`[System] Connected: ${dev.productName || "Unknown DAC"} (VID: 0x${vidStr}, PID: 0x${pidStr})${unknownSuffix}`);
+
+		// Persist Custom USB Options if they were used
+		let usedCustom = false;
+		let customVidValue = "";
+		let customPidValue = "";
+		let customProtocolValue = "";
+		if (customVidEl && customVidEl.value.trim() !== "") {
+			const rawVid = customVidEl.value.trim();
+			const vid = parseInt(rawVid.startsWith("0x") ? rawVid : "0x" + rawVid, 16);
+			if (!isNaN(vid) && dev.vendorId === vid) {
+				usedCustom = true;
+				customVidValue = customVidEl.value.trim();
+				customPidValue = customPidEl ? customPidEl.value.trim() : "";
+				const customProtocolEl = document.getElementById("customProtocol") as HTMLSelectElement;
+				customProtocolValue = customProtocolEl ? customProtocolEl.value : "SAVITECH";
+			}
+		}
+
+		if (usedCustom) {
+			localStorage.setItem("customUsbOverride", JSON.stringify({
+				vid: customVidValue,
+				pid: customPidValue,
+				protocol: customProtocolValue
+			}));
+			log(`[System] Saved custom USB override: VID=${customVidValue}, PID=${customPidValue}, Protocol=${customProtocolValue}`);
+		}
 
 		// Adjust bands for device
-		adjustBandsForDevice(device);
+		adjustBandsForDevice(dev);
 
 		// Identify DAC automatically
-		identifyConnectedDac(device);
+		identifyConnectedDac(dev);
 
 		// Update UI elements for connection state
 		const statusBadge = document.getElementById("statusBadge");
@@ -482,12 +533,21 @@ export async function autoConnectDevice() {
 		const devices = await navigator.hid.getDevices();
 		if (devices.length === 0) return;
 
-		device = devices[0];
-		await device.open();
+		const dev = devices[0];
+		device = dev;
+		await dev.open();
 
-		log(`[System] Auto-connected to previously authorized device: ${device.productName || "Unknown DAC"}`);
-		adjustBandsForDevice(device);
-		identifyConnectedDac(device);
+		// Log connection VID/PID immediately
+		const vidStr = dev.vendorId.toString(16).toLowerCase();
+		const pidStr = dev.productId.toString(16).toLowerCase();
+		const isKnown = activeDacs.some(
+			(d) => d.vid === dev.vendorId && (d.pid === undefined || d.pid === dev.productId)
+		);
+		const unknownSuffix = isKnown ? "" : " [Unknown device]";
+		log(`[System] Connected: ${dev.productName || "Unknown DAC"} (VID: 0x${vidStr}, PID: 0x${pidStr})${unknownSuffix}`);
+		
+		adjustBandsForDevice(dev);
+		identifyConnectedDac(dev);
 
 		const statusBadge = document.getElementById("statusBadge");
 		if (statusBadge) {
@@ -503,21 +563,21 @@ export async function autoConnectDevice() {
 		if (disconnectSection) disconnectSection.style.display = "flex";
 
 		enableControls(true);
-		setupListener(device);
+		setupListener(dev);
 
-		const nameUpper = (device.productName || "").toUpperCase();
+		const nameUpper = (dev.productName || "").toUpperCase();
 		const customVidEl = document.getElementById("customVid") as HTMLInputElement;
-		const protocol = getProtocol(device);
+		const protocol = getProtocol(dev);
 		if (
 			protocol === "FIIO_JA11" ||
-			device.vendorId === VID_SAVITECH ||
-			device.vendorId === VID_SAVITECH_ALT ||
-			device.vendorId === VID_SAVITECH_OFFICIAL ||
-			device.vendorId === VID_AUDIOCULAR ||
+			dev.vendorId === VID_SAVITECH ||
+			dev.vendorId === VID_SAVITECH_ALT ||
+			dev.vendorId === VID_SAVITECH_OFFICIAL ||
+			dev.vendorId === VID_AUDIOCULAR ||
 			nameUpper.includes("JA11") ||
 			(customVidEl && customVidEl.value.trim() !== "")
 		) {
-			await readDeviceParams(device);
+			await readDeviceParams(dev);
 		}
 	} catch (err) {
 		log(`[System] Auto-connect failed: ${(err as Error).message}`);

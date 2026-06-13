@@ -8,6 +8,7 @@ import {
 	setDacBalance,
 	setMicVolume,
 	executeFactoryReset,
+	getProtocol,
 } from "./dsp.ts";
 import {
 	connectToDevice,
@@ -27,7 +28,7 @@ import {
 	loadPreset,
 	type AutoEqPreset,
 } from "./autoeq.ts";
-import { KNOWN_DACS } from "./constants.ts";
+import { KNOWN_DACS, activeDacs, setActiveDacs, type IdentifiedDac } from "./constants.ts";
 
 export type Band = {
 	index: number;
@@ -43,6 +44,7 @@ export type EQ = Band[];
 initState();
 setTimeout(async () => {
 	renderFavorites();
+	await loadDeviceDatabase();
 	await autoConnectDevice();
 }, 0);
 
@@ -615,7 +617,7 @@ window.addEventListener("click", (e) => {
 function renderSupportedDacsList() {
 	if (!supportedDacsList) return;
 	supportedDacsList.innerHTML = "";
-	KNOWN_DACS.forEach((dac) => {
+	activeDacs.forEach((dac) => {
 		const div = document.createElement("div");
 		div.className = "dac-list-item";
 		div.innerHTML = `
@@ -624,8 +626,8 @@ function renderSupportedDacsList() {
 				<span class="dac-list-protocol badge badge-online">${dac.protocol}</span>
 			</div>
 			<div class="dac-list-details">
-				<p class="dac-list-chipset"><strong>Chipset:</strong> ${dac.chipset}</p>
-				<p class="dac-list-desc">${dac.description}</p>
+				<p class="dac-list-chipset"><strong>Chipset:</strong> ${dac.chipset || "DSP Core"}</p>
+				<p class="dac-list-desc">${dac.description || "Compatible hardware DAC controller."}</p>
 			</div>
 		`;
 		supportedDacsList.appendChild(div);
@@ -714,6 +716,204 @@ btnCopyLog?.addEventListener("click", async () => {
 			log(`[System] Failed to copy logs: ${(err as Error).message}`);
 		}
 	}
+});
+
+/**
+ * REMOTE DEVICE DATABASE SYNC & LOCAL PERSISTENCE
+ */
+async function fetchRemoteDatabase(force = false): Promise<IdentifiedDac[] | null> {
+	try {
+		const cached = localStorage.getItem("aura_remote_dacs");
+		const cachedTime = localStorage.getItem("aura_remote_dacs_timestamp");
+		
+		const now = Date.now();
+		const oneDay = 24 * 60 * 60 * 1000;
+		
+		// Use cached database if valid and not expired (24 hours), unless forced
+		if (!force && cached && cachedTime && (now - parseInt(cachedTime)) < oneDay) {
+			const parsed = JSON.parse(cached);
+			if (Array.isArray(parsed)) {
+				return parsed;
+			}
+		}
+		
+		log("[System] Fetching latest device database from GitHub...");
+		const response = await fetch(`https://raw.githubusercontent.com/mandy321/Audiocular-Aura/main/devices.json?t=${Date.now()}`);
+		if (!response.ok) {
+			throw new Error(`HTTP error! Status: ${response.status}`);
+		}
+		
+		const data = await response.json();
+		if (Array.isArray(data)) {
+			// Normalize VID/PID to numbers
+			const validated: IdentifiedDac[] = data.map((item: any) => {
+				const vid = typeof item.vid === "string" ? parseInt(item.vid.startsWith("0x") ? item.vid : "0x" + item.vid, 16) : item.vid;
+				const pid = item.pid !== undefined ? (typeof item.pid === "string" ? parseInt(item.pid.startsWith("0x") ? item.pid : "0x" + item.pid, 16) : item.pid) : undefined;
+				return {
+					vid,
+					pid,
+					name: String(item.name || "Unknown DAC"),
+					chipset: item.chipset ? String(item.chipset) : undefined,
+					protocol: item.protocol,
+					description: item.description ? String(item.description) : undefined
+				};
+			});
+			
+			localStorage.setItem("aura_remote_dacs", JSON.stringify(validated));
+			localStorage.setItem("aura_remote_dacs_timestamp", now.toString());
+			return validated;
+		}
+	} catch (e) {
+		log(`[System] Remote database fetch failed: ${(e as Error).message}`);
+		console.error("Failed to fetch remote database:", e);
+	}
+	
+	// Fallback to cache if exists
+	const cached = localStorage.getItem("aura_remote_dacs");
+	if (cached) {
+		try {
+			const parsed = JSON.parse(cached);
+			if (Array.isArray(parsed)) {
+				log("[System] Offline fallback: Using locally cached device database.");
+				return parsed;
+			}
+		} catch (_) {}
+	}
+	return null;
+}
+
+function mergeDacLists(local: IdentifiedDac[], remote: IdentifiedDac[]): IdentifiedDac[] {
+	const merged = [...remote];
+	for (const localDac of local) {
+		const exists = remote.some(
+			(r) => r.vid === localDac.vid && r.pid === localDac.pid
+		);
+		if (!exists) {
+			merged.push(localDac);
+		}
+	}
+	return merged;
+}
+
+async function loadDeviceDatabase(force = false) {
+	const remoteList = await fetchRemoteDatabase(force);
+	if (remoteList) {
+		const merged = mergeDacLists(KNOWN_DACS, remoteList);
+		setActiveDacs(merged);
+		if (force) {
+			log("[System] Device database updated successfully!");
+		}
+	} else {
+		setActiveDacs(KNOWN_DACS);
+		if (force) {
+			log("[System] Device database refresh failed. Using fallback list.");
+		}
+	}
+	
+	// Re-render Supported DACs list if modal is open
+	const modalSupportedDacs = document.getElementById("modalSupportedDacs");
+	if (modalSupportedDacs && !modalSupportedDacs.classList.contains("hidden")) {
+		renderSupportedDacsList();
+	}
+}
+
+/**
+ * REFRESH DATABASE BUTTON LISTENER
+ */
+const btnRefreshDb = document.getElementById("btnRefreshDb");
+btnRefreshDb?.addEventListener("click", async () => {
+	await loadDeviceDatabase(true);
+});
+
+/**
+ * REPORT UNKNOWN DEVICE MODAL & BUTTON LISTENERS
+ */
+const btnReportUnknown = document.getElementById("btnReportUnknown");
+const modalReportDevice = document.getElementById("modalReportDevice");
+const btnCloseReportModal = document.getElementById("btnCloseReportModal");
+const btnSubmitReport = document.getElementById("btnSubmitReport");
+
+btnReportUnknown?.addEventListener("click", () => {
+	const currentDev = getDevice();
+	if (!currentDev) return;
+	
+	const reportProductName = document.getElementById("reportProductName") as HTMLInputElement;
+	const reportVid = document.getElementById("reportVid") as HTMLInputElement;
+	const reportPid = document.getElementById("reportPid") as HTMLInputElement;
+	const reportProtocol = document.getElementById("reportProtocol") as HTMLSelectElement;
+	
+	if (reportProductName) reportProductName.value = currentDev.productName || "Generic WebHID DAC";
+	if (reportVid) reportVid.value = `0x${currentDev.vendorId.toString(16).toLowerCase().padStart(4, '0')}`;
+	if (reportPid) reportPid.value = `0x${currentDev.productId.toString(16).toLowerCase().padStart(4, '0')}`;
+	
+	if (reportProtocol) {
+		const protocol = getProtocol(currentDev);
+		reportProtocol.value = protocol || "SAVITECH";
+	}
+	
+	if (modalReportDevice) {
+		modalReportDevice.classList.remove("hidden");
+	}
+});
+
+btnCloseReportModal?.addEventListener("click", () => {
+	modalReportDevice?.classList.add("hidden");
+});
+
+window.addEventListener("click", (e) => {
+	if (e.target === modalReportDevice) {
+		modalReportDevice?.classList.add("hidden");
+	}
+});
+
+btnSubmitReport?.addEventListener("click", async () => {
+	const reportProductName = (document.getElementById("reportProductName") as HTMLInputElement)?.value || "Generic WebHID DAC";
+	const reportVid = (document.getElementById("reportVid") as HTMLInputElement)?.value || "0x0000";
+	const reportPid = (document.getElementById("reportPid") as HTMLInputElement)?.value || "0x0000";
+	const reportProtocol = (document.getElementById("reportProtocol") as HTMLSelectElement)?.value || "SAVITECH";
+	
+	const formattedReport = 
+		`### Unknown Device Report\n` +
+		`- **Device Name:** ${reportProductName}\n` +
+		`- **Vendor ID (VID):** ${reportVid}\n` +
+		`- **Product ID (PID):** ${reportPid}\n` +
+		`- **Successfully Used Protocol:** ${reportProtocol}\n\n` +
+		`*(Report generated automatically by AuraPEQ)*`;
+		
+	try {
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			await navigator.clipboard.writeText(formattedReport);
+		} else {
+			const textarea = document.createElement("textarea");
+			textarea.value = formattedReport;
+			textarea.style.position = "fixed";
+			textarea.style.opacity = "0";
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand("copy");
+			document.body.removeChild(textarea);
+		}
+		log(`[System] Device report copied to clipboard!`);
+	} catch (err) {
+		log(`[System] Failed to copy report: ${(err as Error).message}`);
+	}
+	
+	const title = encodeURIComponent(`Add device: ${reportProductName} (${reportVid}:${reportPid})`);
+	const body = encodeURIComponent(
+		`Please add support for this device to the database:\n\n` +
+		`- **Device Name:** ${reportProductName}\n` +
+		`- **Vendor ID (VID):** ${reportVid}\n` +
+		`- **Product ID (PID):** ${reportPid}\n` +
+		`- **Protocol:** ${reportProtocol}\n\n` +
+		`*(Please paste the copied clipboard content below if different)*`
+	);
+	
+	const githubUrl = `https://github.com/mandy321/Audiocular-Aura/issues/new?title=${title}&body=${body}`;
+	window.open(githubUrl, "_blank");
+	
+	modalReportDevice?.classList.add("hidden");
+	
+	alert(`Report copied to clipboard! Opening pre-filled GitHub issue page...`);
 });
 
 

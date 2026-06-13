@@ -8,6 +8,7 @@ import {
 	REPORT_ID_FIIO,
 	VID_COMTRUE,
 	VID_FIIO,
+	activeDacs,
 } from "./constants.ts";
 import {
 	getDevice,
@@ -22,9 +23,38 @@ import type { Band } from "./main.ts";
 const REV_TYPE_MAP_JA11: Record<number, string> = { 0: "PK", 1: "LSQ", 2: "HSQ" };
 
 /**
- * DETECT PROTOCOL BASED ON VENDOR ID
+ * DETECT PROTOCOL BASED ON VENDOR ID AND DATABASE
  */
 export function getProtocol(device: HIDDevice) {
+	// 1. Check merged active database
+	const match = activeDacs.find(
+		(d) =>
+			d.vid === device.vendorId &&
+			(d.pid === undefined || d.pid === device.productId)
+	);
+	if (match) return match.protocol;
+
+	// 2. Check stored custom USB override
+	try {
+		const storedStr = localStorage.getItem("customUsbOverride");
+		if (storedStr) {
+			const stored = JSON.parse(storedStr);
+			if (stored && stored.vid) {
+				const storedVid = parseInt(stored.vid.startsWith("0x") ? stored.vid : "0x" + stored.vid, 16);
+				const storedPid = stored.pid ? parseInt(stored.pid.startsWith("0x") ? stored.pid : "0x" + stored.pid, 16) : undefined;
+				
+				if (device.vendorId === storedVid && (storedPid === undefined || isNaN(storedPid) || device.productId === storedPid)) {
+					if (stored.protocol) {
+						return stored.protocol;
+					}
+				}
+			}
+		}
+	} catch (e) {
+		console.error("Error reading customUsbOverride for protocol detection", e);
+	}
+
+	// 3. Fallback to vendor ID matching
 	if (device.vendorId === VID_COMTRUE) return "MOONDROP";
 	if (device.vendorId === VID_FIIO) {
 		const prodName = (device.productName || "").toUpperCase();

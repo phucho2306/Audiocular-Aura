@@ -108,6 +108,11 @@
               <span id="infoPid" class="info-value">-</span>
             </div>
           </div>
+          
+          <!-- Report Unknown Device Button -->
+          <div id="reportUnknownContainer" class="hidden" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 12px; display: flex; justify-content: flex-end;">
+            <button id="btnReportUnknown" class="btn btn-secondary" style="font-size: 0.75rem; padding: 6px 12px; border-color: var(--color-danger); color: var(--color-danger);" aria-label="Report Unknown Device">📢 Report Unknown Device</button>
+          </div>
         </div>
 
         <!-- Custom USB Settings Accordion Form -->
@@ -115,7 +120,7 @@
           <button id="btnToggleCustomUsb" class="btn btn-secondary-text" aria-label="Toggle Custom USB Settings">Show Custom USB Options ▼</button>
           <div id="customUsbConfig" class="accordion-content hidden">
             <p class="accordion-description">If your DAC is not detected automatically, or if you are using another compatible DSP-enabled device (Savitech, Moondrop, Tanchjim, FiiO), enter its USB hex identifiers below to override connections:</p>
-            <div class="input-row">
+            <div class="input-row" style="flex-wrap: wrap;">
               <div class="input-field">
                 <label for="customVid">Vendor ID (Hex)</label>
                 <input type="text" id="customVid" placeholder="e.g. 262a" maxlength="6">
@@ -123,6 +128,15 @@
               <div class="input-field">
                 <label for="customPid">Product ID (Hex)</label>
                 <input type="text" id="customPid" placeholder="e.g. 104b" maxlength="6">
+              </div>
+              <div class="input-field">
+                <label for="customProtocol">DSP Protocol</label>
+                <select id="customProtocol" class="premium-select">
+                  <option value="SAVITECH">SAVITECH</option>
+                  <option value="MOONDROP">MOONDROP</option>
+                  <option value="FIIO">FIIO</option>
+                  <option value="FIIO_JA11">FIIO (JA11)</option>
+                </select>
               </div>
             </div>
           </div>
@@ -363,6 +377,7 @@
         <!-- Utility Bottom Actions -->
         <div class="utility-footer">
           <button id="btnFactoryReset" class="btn btn-secondary reset" disabled>🔄 FULL FACTORY RESET</button>
+          <button id="btnRefreshDb" class="btn btn-secondary" aria-label="Refresh remote device database">🔄 REFRESH DATABASE</button>
           <button id="btnGetFw" class="btn btn-accent action" disabled>⚡ GET FW VERSION</button>
         </div>
       </section>
@@ -398,6 +413,47 @@
       <p class="modal-desc">The following hardware DSP audio controllers have been identified as compatible with WebHID PEQ configuration:</p>
       <div id="supportedDacsList" class="supported-dacs-list-modal">
         <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Unknown Device Modal Dialog -->
+  <div id="modalReportDevice" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">📢 Report Unknown Device</h3>
+        <button id="btnCloseReportModal" class="btn-close-modal" aria-label="Close report dialog">✖</button>
+      </div>
+      <p class="modal-desc">Thank you for helping us add support for more devices! Confirm the details below to generate a report:</p>
+      
+      <div class="report-form" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+        <div class="input-field">
+          <label for="reportProductName">Device Name</label>
+          <input type="text" id="reportProductName" class="premium-input" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff;" readonly>
+        </div>
+        <div class="input-row" style="display: flex; gap: 16px;">
+          <div class="input-field" style="flex: 1;">
+            <label for="reportVid">Vendor ID (Hex)</label>
+            <input type="text" id="reportVid" class="premium-input font-mono" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff;" readonly>
+          </div>
+          <div class="input-field" style="flex: 1;">
+            <label for="reportPid">Product ID (Hex)</label>
+            <input type="text" id="reportPid" class="premium-input font-mono" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff;" readonly>
+          </div>
+        </div>
+        <div class="input-field">
+          <label for="reportProtocol">Successful Protocol</label>
+          <select id="reportProtocol" class="premium-select">
+            <option value="SAVITECH">SAVITECH (Aura, DS2, DC04 Pro, Generic)</option>
+            <option value="MOONDROP">MOONDROP (Dawn Pro, FreeDSP, May)</option>
+            <option value="FIIO">FIIO (KA17, KA15, KB1)</option>
+            <option value="FIIO_JA11">FIIO_JA11 (JadeAudio JA11)</option>
+          </select>
+        </div>
+        
+        <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+          <button id="btnSubmitReport" class="btn btn-primary" aria-label="Copy Report and Open GitHub">Generate Report & Open GitHub</button>
+        </div>
       </div>
     </div>
   </div>
