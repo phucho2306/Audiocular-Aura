@@ -1,4 +1,4 @@
-import { setDeviceGlobalGain } from "./dsp.ts";
+import { setDeviceGlobalGain, getActiveProtocol } from "./dsp.ts";
 import type { EQ } from "./main.ts";
 
 /**
@@ -40,10 +40,42 @@ export function refreshStripUI(eqState: EQ, i: number) {
  */
 export function updateGlobalGainUI(val: number) {
 	const globalGainSlider = document.getElementById("globalGainSlider") as HTMLInputElement;
-	if (globalGainSlider) globalGainSlider.value = val.toString();
+	const protocol = getActiveProtocol();
 
+	// Primary display shows exact user/preset decimal value
+	const displayValStr = `${val.toFixed(1)} dB`;
 	const globalGainDisplay = document.getElementById("globalGainDisplay") as HTMLElement;
-	if (globalGainDisplay) globalGainDisplay.innerText = `${val} dB`;
+	if (globalGainDisplay) globalGainDisplay.innerText = displayValStr;
+
+	// Adjust slider step/value
+	if (globalGainSlider) {
+		if (protocol === "SAVITECH") {
+			globalGainSlider.step = "1";
+			globalGainSlider.value = Math.round(val).toString();
+		} else if (protocol === "MOONDROP" || protocol === "FIIO_JA11" || protocol === "FIIO") {
+			globalGainSlider.step = "0.1";
+			globalGainSlider.value = val.toString();
+		} else {
+			globalGainSlider.step = "1";
+			globalGainSlider.value = Math.round(val).toString();
+		}
+	}
+
+	// Update secondary applied note (for Savitech devices with decimal gain values)
+	const preampAppliedNote = document.getElementById("preampAppliedNote") as HTMLElement;
+	if (preampAppliedNote) {
+		if (protocol === "SAVITECH") {
+			const roundedVal = Math.round(val);
+			if (Math.abs(val - roundedVal) > 0.001) {
+				preampAppliedNote.innerText = `(applies as ${roundedVal} dB)`;
+				preampAppliedNote.style.display = "block";
+			} else {
+				preampAppliedNote.style.display = "none";
+			}
+		} else {
+			preampAppliedNote.style.display = "none";
+		}
+	}
 }
 
 /**
@@ -63,6 +95,38 @@ export async function setGlobalGain(e: Event) {
 	const globalGainEl = e.target as HTMLInputElement;
 	const newGlobalGainState = Number(globalGainEl.value);
 	await updateGlobalGain(newGlobalGainState);
+}
+
+/**
+ * Configure preamp slider step and description based on current protocol status
+ */
+export function configurePreampUI(currentGain: number) {
+	const protocol = getActiveProtocol();
+	const globalGainSlider = document.getElementById("globalGainSlider") as HTMLInputElement;
+	const preampStepIndicator = document.getElementById("preampStepIndicator") as HTMLElement;
+
+	if (protocol === "SAVITECH") {
+		if (globalGainSlider) globalGainSlider.step = "1";
+		if (preampStepIndicator) {
+			preampStepIndicator.innerText = "Integer steps only (Savitech hardware constraint)";
+			preampStepIndicator.className = "preamp-step-indicator warning";
+		}
+	} else if (protocol === "MOONDROP" || protocol === "FIIO_JA11" || protocol === "FIIO") {
+		if (globalGainSlider) globalGainSlider.step = "0.1";
+		if (preampStepIndicator) {
+			preampStepIndicator.innerText = "Fine steps (0.1 dB precision supported)";
+			preampStepIndicator.className = "preamp-step-indicator success";
+		}
+	} else {
+		if (globalGainSlider) globalGainSlider.step = "1";
+		if (preampStepIndicator) {
+			preampStepIndicator.innerText = "Connect DAC to enable controls";
+			preampStepIndicator.className = "preamp-step-indicator disabled";
+		}
+	}
+
+	// Snap/update UI based on new constraints
+	updateGlobalGainUI(currentGain);
 }
 
 /**

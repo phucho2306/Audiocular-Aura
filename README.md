@@ -29,6 +29,7 @@ If you are new to audio tuning, here is what this tool does and why it is specia
 * **Verified Peaking & Shelving Filter Math**: Exact implementation of RBJ Audio EQ cookbook formulas for Peaking (`PK`), Low-Shelf (`LSQ`), and High-Shelf (`HSQ`) filters calculated and sent directly to the device.
 * **Instant Real-Time Sync**: No manual syncing required! Band parameters (Frequency, Q, Gain, Type, Enable state) are throttled (50ms window) and sent instantly to the DAC as you drag canvas handles, update select dropdowns, or adjust sliders.
 * **Automatic Parameter Reading**: Automatically reads active preamp gain and EQ band settings directly from connected Savitech, FiiO JA11, and Moondrop/Comtrue devices upon connection. The UI sliders and interactive graph populate instantly with the device's actual hardware state, ensuring a seamless synchronization process without overwriting stored parameters.
+* **Preamp Gain UI Transparency (Dual-Display)**: Automatically detects hardware preamp gain constraints. For Savitech devices (which only support integer dB steps), the UI preserves user-entered or imported decimal values in the primary display (e.g. `-4.8 dB`) while displaying the actual hardware-applied value (e.g. `(applies as -5 dB)`) in a secondary badge. The slider step adjusts dynamically (`1` for Savitech, `0.1` for Moondrop/FiiO) to align with hardware capabilities.
 * **Interactive Frequency Graph**: Drag and drop visual handles on a logarithmic grid to adjust Gain and Frequency, with real-time cumulative curve tracing. The grid matches the hardware scale limits (-12 dB to +12 dB) for pixel-perfect tracking.
 * **10 Configurable Bands**: Individual frequency, gain, and Q (filter width) settings supporting Peak, Low Shelf, and High Shelf filter types.
 * **Dynamic Remote Device Database**: Automatically fetches and updates the device compatibility database from a remote JSON file on startup (with 24-hour local caching and automatic offline fallback). Includes a manual **"REFRESH DATABASE"** button to check for new models instantly.
@@ -76,12 +77,12 @@ If you are new to audio tuning, here is what this tool does and why it is specia
 
 AuraPEQ features a multi-protocol hardware communication layer that supports several popular DSP chipsets and audio brands out-of-the-box:
 
-| Chipset / Protocol | Key Brands & Models | Connection Details |
-| :--- | :--- | :--- |
-| **Savitech (Walkplay)** | Audiocular Aura, JCally (Generic), Fosi, iBasso | Uses standard Q30 fixed-point IIR filter calculations (10 bands). |
-| **Moondrop / Comtrue** | Moondrop Dawn Pro 2, Moondrop, Tanchjim (CT7601 chips) | Uses specialized double-precision biquad coefficient encoding (10 bands). |
-| **FiiO** | FiiO (KA17, KA15, KB1, etc.) | Decodes gain, frequency, and Q parameters to FiiO's custom 10-band DSP PEQ formats (Report ID 7). |
-| **FiiO JA11 (KT02H20)** | FiiO JadeAudio JA11 | Uses the KT02H20 5-band DSP PEQ protocol over proprietary raw HID commands (Report ID 2). |
+| Chipset / Protocol | Key Brands & Models | Preamp Gain Step | Connection Details |
+| :--- | :--- | :--- | :--- |
+| **Savitech (Walkplay)** | Audiocular Aura, JCally (Generic), Fosi, iBasso | **Integer dB (1 dB)** | Uses standard Q30 fixed-point IIR filter calculations (10 bands). |
+| **Moondrop / Comtrue** | Moondrop Dawn Pro 2, Moondrop, Tanchjim (CT7601 chips) | **Decimal dB (0.1 dB)** | Uses specialized double-precision biquad coefficient encoding (10 bands). |
+| **FiiO** | FiiO (KA17, KA15, KB1, etc.) | **Decimal dB (0.1 dB)** | Decodes gain, frequency, and Q parameters to FiiO's custom 10-band DSP PEQ formats (Report ID 7). |
+| **FiiO JA11 (KT02H20)** | FiiO JadeAudio JA11 | **Decimal dB (0.1 dB)** | Uses the KT02H20 5-band DSP PEQ protocol over proprietary raw HID commands (Report ID 2). |
 
 ### Officially Supported DAC Models
 

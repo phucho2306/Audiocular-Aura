@@ -10,7 +10,7 @@ import {
 	activeDacs,
 } from "./constants.ts";
 import { readDeviceParams, setupListener, syncToDevice, queueRealtimeBandWrite, getProtocol } from "./dsp.ts";
-import { enableControls, log, updateGlobalGainUI, refreshStripUI, updateGlobalGain } from "./helpers.ts";
+import { enableControls, log, updateGlobalGainUI, refreshStripUI, updateGlobalGain, configurePreampUI } from "./helpers.ts";
 import type { Band, EQ } from "./main.ts";
 import { renderPEQ, resizeCanvas } from "./peq.ts";
 
@@ -106,6 +106,7 @@ export function initState() {
 	updateLastAppliedEqUI();
 	loadCustomProfilesFromStorage();
 	renderCustomProfiles();
+	configurePreampUI(globalGainState);
 	
 	// Pre-fill Custom USB options from localStorage
 	try {
@@ -377,6 +378,7 @@ export async function connectToDevice() {
 		if (disconnectSection) disconnectSection.style.display = "flex";
 
 		enableControls(true);
+		configurePreampUI(globalGainState);
 
 		setupListener(device);
 
@@ -425,6 +427,7 @@ export async function disconnectDevice() {
 		if (versionEl) versionEl.innerText = "";
 
 		enableControls(false);
+		configurePreampUI(globalGainState);
 		renderUI(eqState);
 		log("Disconnected.");
 	} catch (err) {
@@ -561,6 +564,7 @@ export async function autoConnectDevice() {
 		if (disconnectSection) disconnectSection.style.display = "flex";
 
 		enableControls(true);
+		configurePreampUI(globalGainState);
 		setupListener(dev);
 
 		const protocol = getProtocol(dev);

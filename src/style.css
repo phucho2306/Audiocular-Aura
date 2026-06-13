@@ -392,6 +392,39 @@ body.aura-app-theme {
   margin-left: auto;
 }
 
+.preamp-slider-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.preamp-step-indicator {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  margin-top: 2px;
+}
+
+.preamp-step-indicator.warning {
+  color: #ea580c;
+}
+
+.preamp-step-indicator.success {
+  color: var(--color-online);
+}
+
+.preamp-step-indicator.disabled {
+  color: var(--text-dim);
+}
+
+.preamp-applied-note {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 2px;
+}
+
 @media (max-width: 768px) {
   .preamp-group {
     margin-left: 0;

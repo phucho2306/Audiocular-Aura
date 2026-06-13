@@ -72,8 +72,12 @@
             <div class="preamp-labels">
               <span class="preamp-title">Pre-Amp Gain</span>
               <span id="globalGainDisplay" class="preamp-value">0 dB</span>
+              <span id="preampAppliedNote" class="preamp-applied-note" style="display: none;"></span>
             </div>
-            <input type="range" id="globalGainSlider" min="-20" max="10" step="1" value="0" class="preamp-slider" disabled aria-label="Adjust Pre-Amp Gain">
+            <div class="preamp-slider-wrapper">
+              <input type="range" id="globalGainSlider" min="-20" max="10" step="1" value="0" class="preamp-slider" disabled aria-label="Adjust Pre-Amp Gain">
+              <span id="preampStepIndicator" class="preamp-step-indicator">Connect DAC to enable controls</span>
+            </div>
           </div>
         </div>
 

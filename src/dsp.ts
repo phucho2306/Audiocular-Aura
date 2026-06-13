@@ -67,6 +67,15 @@ export function getProtocol(device: HIDDevice) {
 }
 
 /**
+ * GET ACTIVE DEVICE PROTOCOL
+ */
+export function getActiveProtocol(): string {
+	const device = getDevice();
+	if (!device) return "NONE";
+	return getProtocol(device);
+}
+
+/**
  * Write band for FiiO JA11 (KT02H20) devices
  */
 async function writeBandJa11(device: HIDDevice, band: Band, gain: number) {
