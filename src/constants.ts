@@ -110,9 +110,9 @@ export const KNOWN_DACS: IdentifiedDac[] = [
 		vid: 0x35d8,
 		pid: 0x011d,
 		name: "Moondrop Dawn Pro 2",
-		chipset: "Savitech DSP Core",
-		protocol: "SAVITECH",
-		description: "User confirmed working perfectly with Savitech protocol."
+		chipset: "Comtrue CT7601 (DSP Enabled)",
+		protocol: "MOONDROP",
+		description: "Premium portable DAC featuring Moondrop's DSP configuration."
 	},
 	{
 		vid: VID_COMTRUE,

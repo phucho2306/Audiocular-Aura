@@ -33,7 +33,7 @@ If you are new to audio tuning, here is what this tool does and why it is specia
 * **Dynamic Remote Device Database**: Automatically fetches and updates the device compatibility database from a remote JSON file on startup (with 24-hour local caching and automatic offline fallback). Includes a manual **"REFRESH DATABASE"** button to check for new models instantly.
 * **Persistent Custom USB Connections**: Connect unrecognized DACs using manual Vendor IDs, Product IDs, and select the corresponding DSP protocol. Successfully connected configurations are saved locally and pre-filled on next launch.
 * **Frictionless Unknown Device Reporting**: Connect any unrecognized DAC to display a **"Report Unknown Device"** button. This automatically copies a formatted markdown report (including device name, VID, PID, protocol, and full System Messages Console logs) to your clipboard and opens a pre-filled GitHub issue page to contribute new IDs.
-* **Moondrop Dawn Pro 2 Support**: Static out-of-the-box compatibility added for the Moondrop Dawn Pro 2 (VID: `0x35d8` / PID: `0x011d`) running on the SAVITECH protocol.
+* **Moondrop Dawn Pro 2 Support**: Static out-of-the-box compatibility added for the Moondrop Dawn Pro 2 (VID: `0x35d8` / PID: `0x011d`) running on the MOONDROP protocol.
 * **Immediate VID/PID Connection Logging**: Connection logging immediately prints the device's Vendor ID (VID) and Product ID (PID) in hex upon opening, aiding debug and device contribution.
 * **Offline-Capable PWA with In-App Installation**: Fully installable as a Progressive Web App (PWA) via a dedicated **"INSTALL APP"** button in the header, enabling complete offline operation using a stale-while-revalidate service worker cache.
 * **Real-Time Device Info Panel (with VID/PID)**: Displays live stats for the connected DAC including firmware version, operational DSP sample rate, active PEQ slots used (`0` to `10`), and hexadecimal USB Vendor ID (VID) and Product ID (PID).
@@ -77,8 +77,8 @@ AuraPEQ features a multi-protocol hardware communication layer that supports sev
 
 | Chipset / Protocol | Key Brands & Models | Connection Details |
 | :--- | :--- | :--- |
-| **Savitech (Walkplay)** | Audiocular Aura, Moondrop Dawn Pro 2, JCally (Generic), Fosi, iBasso | Uses standard Q30 fixed-point IIR filter calculations (10 bands). |
-| **Moondrop / Comtrue** | Moondrop, Tanchjim (CT7601 chips) | Uses specialized double-precision biquad coefficient encoding (10 bands). |
+| **Savitech (Walkplay)** | Audiocular Aura, JCally (Generic), Fosi, iBasso | Uses standard Q30 fixed-point IIR filter calculations (10 bands). |
+| **Moondrop / Comtrue** | Moondrop Dawn Pro 2, Moondrop, Tanchjim (CT7601 chips) | Uses specialized double-precision biquad coefficient encoding (10 bands). |
 | **FiiO** | FiiO (KA17, KA15, KB1, etc.) | Decodes gain, frequency, and Q parameters to FiiO's custom 10-band DSP PEQ formats (Report ID 7). |
 | **FiiO JA11 (KT02H20)** | FiiO JadeAudio JA11 | Uses the KT02H20 5-band DSP PEQ protocol over proprietary raw HID commands (Report ID 2). |
 

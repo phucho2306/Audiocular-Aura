@@ -266,15 +266,21 @@ export function renderUI(eqState: EQ) {
  */
 export async function connectToDevice() {
 	try {
-		// Basic automatic filters
-		const filters: any[] = [
-			{ vendorId: VID_AUDIOCULAR },        // TTGK / Audiocular Aura (CB5100)
-			{ vendorId: VID_SAVITECH_OFFICIAL }, // Fosi, iBasso, Savitech Official
-			{ vendorId: VID_SAVITECH },          // JCally, Savitech Generic
-			{ vendorId: VID_SAVITECH_ALT },      // JCally JM20 Pro, Savitech Alt
-			{ vendorId: VID_COMTRUE },           // Moondrop, Tanchjim
-			{ vendorId: VID_FIIO },              // FiiO
-		];
+		// Build filters dynamically from activeDacs database to include all supported VIDs
+		const vendorIds = new Set<number>([
+			VID_AUDIOCULAR,
+			VID_SAVITECH_OFFICIAL,
+			VID_SAVITECH,
+			VID_SAVITECH_ALT,
+			VID_COMTRUE,
+			VID_FIIO
+		]);
+		
+		activeDacs.forEach(dac => {
+			vendorIds.add(dac.vid);
+		});
+
+		const filters: any[] = Array.from(vendorIds).map(vid => ({ vendorId: vid }));
 
 		// Check for custom VID/PID overrides in the UI
 		const customVidEl = document.getElementById("customVid") as HTMLInputElement;
@@ -375,20 +381,12 @@ export async function connectToDevice() {
 		setupListener(device);
 
 		// Support parameter reading for Savitech-based DACs (including FiiO JA11)
-		const nameUpper = (device.productName || "").toUpperCase();
 		const protocol = getProtocol(device);
-		if (
-			protocol === "FIIO_JA11" ||
-			device.vendorId === VID_SAVITECH ||
-			device.vendorId === VID_SAVITECH_ALT ||
-			device.vendorId === VID_SAVITECH_OFFICIAL ||
-			device.vendorId === VID_AUDIOCULAR ||
-			nameUpper.includes("JA11") ||
-			(customVidEl && customVidEl.value.trim() !== "") // Allow reading for custom-defined Savitech variants
-		) {
+		if (protocol === "SAVITECH" || protocol === "FIIO_JA11") {
 			await readDeviceParams(device);
 		} else {
 			log("Note: Parameter reading is only supported for Savitech and FiiO JA11 devices. Starting with a flat profile.");
+			renderUI(eqState);
 		}
 	} catch (err) {
 		log(`Connection Error: ${(err as Error).message}`);
@@ -565,19 +563,11 @@ export async function autoConnectDevice() {
 		enableControls(true);
 		setupListener(dev);
 
-		const nameUpper = (dev.productName || "").toUpperCase();
-		const customVidEl = document.getElementById("customVid") as HTMLInputElement;
 		const protocol = getProtocol(dev);
-		if (
-			protocol === "FIIO_JA11" ||
-			dev.vendorId === VID_SAVITECH ||
-			dev.vendorId === VID_SAVITECH_ALT ||
-			dev.vendorId === VID_SAVITECH_OFFICIAL ||
-			dev.vendorId === VID_AUDIOCULAR ||
-			nameUpper.includes("JA11") ||
-			(customVidEl && customVidEl.value.trim() !== "")
-		) {
+		if (protocol === "SAVITECH" || protocol === "FIIO_JA11") {
 			await readDeviceParams(dev);
+		} else {
+			renderUI(eqState);
 		}
 	} catch (err) {
 		log(`[System] Auto-connect failed: ${(err as Error).message}`);
