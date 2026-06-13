@@ -8,6 +8,21 @@ Live Web App: **[https://mandy321.github.io/Audiocular-Aura/](https://mandy321.g
 
 ---
 
+## 💡 AuraPEQ in Simple Terms (Layman's Guide)
+
+If you are new to audio tuning, here is what this tool does and why it is special:
+
+* **What is a Parametric Equalizer (PEQ)?**
+  Most simple equalizers only let you adjust broad ranges (like "Bass" or "Treble"). A Parametric EQ gives you surgical control. You can target a very specific frequency (like a muddy vocal range or a sharp piercing treble peak) and adjust its volume, width, and shape.
+* **What is "Hardware-Level" EQ?**
+  Normally, EQ apps run in the background on your computer or phone, which drains your battery and uses CPU power. AuraPEQ sends your settings directly into the little USB headphone adapter (DAC) itself. The hardware chip inside the adapter does all the heavy lifting.
+* **Why "Save to Flash" is a Game Changer:**
+  When you click **Save to Flash**, your custom sound profile is saved permanently inside the USB adapter's internal memory. You can unplug it and plug it into a Nintendo Switch, Playstation, iPhone, iPad, or Android phone—and **your custom sound will work instantly**, with zero apps or drivers needed on those devices!
+* **The "Dynamic Database" & "Report" Buttons:**
+  We maintain a cloud database of supported audio devices. The app automatically fetches the latest list on startup, so new devices work instantly without requiring you to update the app. If you connect an unrecognized device, the **"Report Unknown Device"** button copies the technical details (including logs) to your clipboard and opens a pre-filled GitHub page so we can add support for your device.
+
+---
+
 ## ✨ Features
 
 * **Hardware-Level DSP Processing**: The audio filter logic is processed directly inside the DAC's integrated DSP chip.
