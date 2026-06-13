@@ -83,6 +83,19 @@ AuraPEQ features a multi-protocol hardware communication layer that supports sev
 | **FiiO** | FiiO (KA17, KA15, KB1, etc.) | Decodes gain, frequency, and Q parameters to FiiO's custom 10-band DSP PEQ formats (Report ID 7). |
 | **FiiO JA11 (KT02H20)** | FiiO JadeAudio JA11 | Uses the KT02H20 5-band DSP PEQ protocol over proprietary raw HID commands (Report ID 2). |
 
+### Officially Supported DAC Models
+
+| DAC Model / Brand | DSP Chipset | Protocol | Vendor ID (VID) | Product ID (PID) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Audiocular Aura** | Savitech CB5100 + CS43131 | SAVITECH | `0x3302` | *Any* |
+| **Fosi Audio DS2 / iBasso DC04 Pro** | Savitech Official CB5100 | SAVITECH | `0x262a` | *Any* |
+| **JCally JM20 / Savitech Generic** | Savitech SA9312 / SA9123 DSP | SAVITECH | `0x0661` | *Any* |
+| **JCally JM20 Pro / Alt Savitech** | Savitech Alternate Controller | SAVITECH | `0x0666` | *Any* |
+| **Moondrop Dawn Pro 2** | Comtrue CT7601 (DSP Enabled) | MOONDROP | `0x35d8` | `0x011d` |
+| **Moondrop Dawn Pro / FreeDSP / May / Tanchjim Space Lite** | Comtrue CT7601 (DSP Enabled) | MOONDROP | `0x2fc6` | *Any* |
+| **FiiO JadeAudio JA11** | KT02H20 DSP Core | FIIO_JA11 | `0x2972` | `0x0102` |
+| **FiiO KA17 / KA15 / KB1** | FiiO DSP Core | FIIO | `0x2972` | *Any* (excl. `0x0102`) |
+
 ### How to use with other DACs:
 1. If your DAC uses one of the supported chipsets listed above, connect it to your computer.
 2. In the Web App, click **Show Custom USB Options**.
