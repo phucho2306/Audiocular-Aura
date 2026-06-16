@@ -22,6 +22,7 @@ import {
 } from "./fn.ts";
 import { delay, log, refreshStripUI, logTx, logRx } from "./helpers.ts";
 import type { Band } from "./main.ts";
+import { t } from "./i18n.ts";
 
 const REV_TYPE_MAP_JA11: Record<number, string> = { 0: "PK", 1: "LSQ", 2: "HSQ" };
 
@@ -404,13 +405,18 @@ function updateBalanceState(channel: number, attenuation: number) {
 	const balanceVal = document.getElementById("balanceVal") as HTMLElement;
 	if (sliderBalance) sliderBalance.value = balance.toString();
 	
-	let text = "0 (Center)";
-	if (balance < 0) {
-		text = `L +${Math.abs(balance)}`;
-	} else if (balance > 0) {
-		text = `R +${balance}`;
+	if (balanceVal) {
+		if (balance === 0) {
+			balanceVal.setAttribute("data-i18n", "balance_center_val");
+			balanceVal.innerText = t("balance_center_val");
+		} else if (balance < 0) {
+			balanceVal.removeAttribute("data-i18n");
+			balanceVal.innerText = `L +${Math.abs(balance)}`;
+		} else {
+			balanceVal.removeAttribute("data-i18n");
+			balanceVal.innerText = `R +${balance}`;
+		}
 	}
-	if (balanceVal) balanceVal.innerText = text;
 }
 
 /**
@@ -482,16 +488,11 @@ export function setupListener(device: HIDDevice) {
 				const selFilterType = document.getElementById("selFilterType") as HTMLSelectElement;
 				const filterDescBox = document.getElementById("filterDescBox") as HTMLElement;
 				const filterTypeVal = document.getElementById("filterTypeVal") as HTMLElement;
-				const filterDescriptions = {
-					"FAST-LL": "<strong>FAST-LL (Low Latency):</strong> Minimizes pre-ringing (echo before notes) and provides the lowest latency. Warm, punchy, and thick sound. Best for gaming and videos.",
-					"FAST-PC": "<strong>FAST-PC (Phase Comp):</strong> Preserves phase linearity across the entire spectrum, removing phase distortion. Highly natural, clean, and balanced sound. Best for acoustic instruments.",
-					"Slow-LL": "<strong>Slow-LL (Low Latency):</strong> Combines low latency with a gentler high-frequency roll-off. Warm, relaxed, with a wider perceived soundstage. Ideal for jazz and vocals.",
-					"Slow-PC": "<strong>Slow-PC (Phase Comp):</strong> Combines phase linearity with a gentler high-frequency roll-off. Detailed, analytical, and monitor-like sound. Great for critical listening.",
-					"NON-OS": "<strong>NON-OS (Non-Oversampling):</strong> Bypasses digital interpolation entirely. Pure, raw, and analog-like sound signature with a slight high-frequency roll-off. Recommended for a vintage sound."
-				};
 				if (selFilterType) selFilterType.value = filter;
-				if (filterTypeVal) filterTypeVal.innerText = selFilterType.options[selFilterType.selectedIndex].text;
-				if (filterDescBox) filterDescBox.innerHTML = filterDescriptions[filter as keyof typeof filterDescriptions] || "";
+				if (filterTypeVal && selFilterType) filterTypeVal.innerText = selFilterType.options[selFilterType.selectedIndex].text;
+				if (filterDescBox) {
+					filterDescBox.innerHTML = t("filter_desc_" + filter.toLowerCase().replace("-", "_"));
+				}
 			}
 		} else if (cmd === 29) { // Amp Mode
 			const val = data[3];
@@ -499,14 +500,14 @@ export function setupListener(device: HIDDevice) {
 			const ampLabelClassH = document.getElementById("ampLabelClassH") as HTMLElement;
 			const ampLabelClassAB = document.getElementById("ampLabelClassAB") as HTMLElement;
 			if (toggleAmpMode) {
-				const isClassH = (val === 0);
-				toggleAmpMode.checked = isClassH;
-				if (isClassH) {
-					ampLabelClassH?.classList.add("active");
-					ampLabelClassAB?.classList.remove("active");
-				} else {
+				const isClassAB = (val === 1);
+				toggleAmpMode.checked = isClassAB;
+				if (isClassAB) {
 					ampLabelClassH?.classList.remove("active");
 					ampLabelClassAB?.classList.add("active");
+				} else {
+					ampLabelClassH?.classList.add("active");
+					ampLabelClassAB?.classList.remove("active");
 				}
 			}
 		} else if (cmd === 25) { // Gain Mode

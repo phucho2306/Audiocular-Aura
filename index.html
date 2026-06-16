@@ -301,27 +301,27 @@
       <!-- Device Utility Controls Card -->
       <section class="control-card utility-card-full">
         <div class="card-header">
-          <h2 class="card-title">⚙️ Device Utility Controls</h2>
-          <p class="card-subtitle">Configure advanced hardware-level DAC parameters, amplifier states, and microphone gain.</p>
+          <h2 class="card-title" data-i18n="device_utilities_title">⚙️ Device Utility Controls</h2>
+          <p class="card-subtitle" data-i18n="device_utilities_subtitle">Configure advanced hardware-level DAC parameters, amplifier states, and microphone gain.</p>
         </div>
         
         <div class="utility-grid">
           <!-- Column 1: DAC Configuration -->
           <div class="utility-col">
-            <h3 class="utility-sub-title">DAC Configuration</h3>
+            <h3 class="utility-sub-title" data-i18n="dac_configuration">DAC Configuration</h3>
             
             <!-- Filter Type -->
             <div class="control-group">
               <label for="selFilterType" class="control-label-row">
-                <span>Filter Type</span>
+                <span data-i18n="filter_type">Filter Type</span>
                 <span id="filterTypeVal" class="control-value">FAST-LL (Low Latency)</span>
               </label>
               <select id="selFilterType" class="premium-select" disabled>
-                <option value="FAST-LL">FAST-LL (Low Latency)</option>
-                <option value="FAST-PC">FAST-PC (Phase Comp)</option>
-                <option value="Slow-LL">Slow-LL (Low Latency)</option>
-                <option value="Slow-PC">Slow-PC (Phase Comp)</option>
-                <option value="NON-OS">NON-OS (Non-Oversampling)</option>
+                <option value="FAST-LL" data-i18n="filter_fast_ll">FAST-LL (Low Latency)</option>
+                <option value="FAST-PC" data-i18n="filter_fast_pc">FAST-PC (Phase Comp)</option>
+                <option value="Slow-LL" data-i18n="filter_slow_ll">Slow-LL (Low Latency)</option>
+                <option value="Slow-PC" data-i18n="filter_slow_pc">Slow-PC (Phase Comp)</option>
+                <option value="NON-OS" data-i18n="filter_non_os">NON-OS (Non-Oversampling)</option>
               </select>
             </div>
             
@@ -333,62 +333,62 @@
             <!-- Amp Mode -->
             <div class="control-group-row">
               <div class="toggle-details">
-                <span class="control-label">Amp Mode</span>
-                <span class="toggle-desc">Class H vs Class AB</span>
+                <span class="control-label" data-i18n="amp_mode">Amp Mode</span>
+                <span class="toggle-desc" data-i18n="amp_mode_desc">Class H vs Class AB</span>
               </div>
               <div class="toggle-wrapper">
-                <span class="toggle-label-left" id="ampLabelClassH">Class H</span>
+                <span class="toggle-label-left" id="ampLabelClassH" data-i18n="amp_class_h">Class H</span>
                 <label class="switch">
                   <input type="checkbox" id="toggleAmpMode" disabled>
                   <span class="slider"></span>
                 </label>
-                <span class="toggle-label-right active" id="ampLabelClassAB">Class AB</span>
+                <span class="toggle-label-right active" id="ampLabelClassAB" data-i18n="amp_class_ab">Class AB</span>
               </div>
             </div>
 
             <!-- Gain Mode -->
             <div class="control-group-row">
               <div class="toggle-details">
-                <span class="control-label">Gain Mode</span>
-                <span class="toggle-desc">Output Power Level</span>
+                <span class="control-label" data-i18n="gain_mode">Gain Mode</span>
+                <span class="toggle-desc" data-i18n="gain_mode_desc">Output Power Level</span>
               </div>
               <div class="toggle-wrapper">
-                <span class="toggle-label-left active" id="gainLabelLow">Low</span>
+                <span class="toggle-label-left active" id="gainLabelLow" data-i18n="gain_low">Low</span>
                 <label class="switch">
                   <input type="checkbox" id="toggleGainMode" disabled>
                   <span class="slider"></span>
                 </label>
-                <span class="toggle-label-right" id="gainLabelHigh">High</span>
+                <span class="toggle-label-right" id="gainLabelHigh" data-i18n="gain_high">High</span>
               </div>
             </div>
 
             <!-- Channel Balance -->
             <div class="control-group">
               <label for="sliderBalance" class="control-label-row">
-                <span>Channel Balance</span>
-                <span id="balanceVal" class="control-value">0 (Center)</span>
+                <span data-i18n="channel_balance">Channel Balance</span>
+                <span id="balanceVal" class="control-value" data-i18n="balance_center_val">0 (Center)</span>
               </label>
               <input type="range" id="sliderBalance" min="-15" max="15" step="1" value="0" class="premium-range" disabled>
               <div class="balance-labels">
-                <span>Left (-15)</span>
-                <span>Center (0)</span>
-                <span>Right (+15)</span>
+                <span data-i18n="balance_left">Left (-15)</span>
+                <span data-i18n="balance_center">Center (0)</span>
+                <span data-i18n="balance_right">Right (+15)</span>
               </div>
             </div>
           </div>
 
           <!-- Column 2: Microphone Control -->
           <div class="utility-col">
-            <h3 class="utility-sub-title">Microphone Control</h3>
+            <h3 class="utility-sub-title" data-i18n="mic_control">Microphone Control</h3>
             
             <!-- Monitoring Toggle -->
             <div class="control-group-row">
               <div class="toggle-details">
-                <span class="control-label">Monitoring</span>
-                <span class="toggle-desc">Zero-Latency Mic Loopback</span>
+                <span class="control-label" data-i18n="mic_monitor">Monitoring</span>
+                <span class="toggle-desc" data-i18n="mic_monitor_desc">Zero-Latency Mic Loopback</span>
               </div>
               <div class="toggle-wrapper">
-                <span class="toggle-label-left active" id="micMonitorStatus">Monitoring Off</span>
+                <span class="toggle-label-left active" id="micMonitorStatus" data-i18n="monitoring_off">Monitoring Off</span>
                 <label class="switch">
                   <input type="checkbox" id="toggleMicMonitor" disabled>
                   <span class="slider"></span>
@@ -398,7 +398,7 @@
 
             <!-- Mic Visual Levels (Aesthetic Bars) -->
             <div class="control-group">
-              <span class="control-label">Input Levels</span>
+              <span class="control-label" data-i18n="input_levels">Input Levels</span>
               <div class="level-meters">
                 <div class="meter-channel">
                   <span class="meter-label">L</span>
@@ -418,7 +418,7 @@
             <!-- Mic Gain Slider -->
             <div class="control-group">
               <label for="sliderMicGain" class="control-label-row">
-                <span>Microphone Gain</span>
+                <span data-i18n="mic_gain">Microphone Gain</span>
                 <span id="micGainVal" class="control-value">0 dB</span>
               </label>
               <input type="range" id="sliderMicGain" min="-15" max="15" step="1" value="0" class="premium-range" disabled>
@@ -433,19 +433,19 @@
 
         <!-- Utility Bottom Actions -->
         <div class="utility-footer">
-          <button id="btnFactoryReset" class="btn btn-secondary reset" disabled>🔄 FULL FACTORY RESET</button>
-          <button id="btnRefreshDb" class="btn btn-secondary" aria-label="Refresh remote device database">🔄 REFRESH DATABASE</button>
-          <button id="btnGetFw" class="btn btn-accent action" disabled>⚡ GET FW VERSION</button>
+          <button id="btnFactoryReset" class="btn btn-secondary reset" disabled><span class="icon">🔄</span> <span data-i18n="btn_factory_reset">FULL FACTORY RESET</span></button>
+          <button id="btnRefreshDb" class="btn btn-secondary" aria-label="Refresh remote device database"><span class="icon">🔄</span> <span data-i18n="btn_refresh_db">REFRESH DATABASE</span></button>
+          <button id="btnGetFw" class="btn btn-accent action" disabled><span class="icon">⚡</span> <span data-i18n="btn_get_fw">GET FW VERSION</span></button>
         </div>
       </section>
 
       <!-- Collapsible Console/Terminal Log Panel -->
       <section class="control-card log-card">
         <div class="log-header">
-          <h3 class="log-title">System Messages Console</h3>
+          <h3 class="log-title" data-i18n="console_title">System Messages Console</h3>
           <div class="log-header-buttons" style="display: flex; gap: 8px;">
-            <button id="btnCopyLog" class="btn btn-clear-log" aria-label="Copy Log Console to Clipboard">Copy</button>
-            <button class="btn btn-clear-log" onclick="document.getElementById('logConsole').innerHTML = '<div>Console cleared.</div>'" aria-label="Clear Log Console">Clear</button>
+            <button id="btnCopyLog" class="btn btn-clear-log" aria-label="Copy Log Console to Clipboard" data-i18n="btn_copy_log">Copy</button>
+            <button class="btn btn-clear-log" onclick="document.getElementById('logConsole').innerHTML = '<div>' + (window.t ? window.t('log_console_cleared') : 'Console cleared.') + '</div>'" aria-label="Clear Log Console" data-i18n="btn_clear_log">Clear</button>
           </div>
         </div>
         <div id="logConsole" class="log-body">Ready to connect...</div>

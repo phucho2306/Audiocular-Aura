@@ -43,7 +43,7 @@ import {
 	type AutoEqPreset,
 } from "./autoeq.ts";
 import { KNOWN_DACS, activeDacs, setActiveDacs, type IdentifiedDac } from "./constants.ts";
-import { applyTranslations, getCurrentLang, setCurrentLang } from "./i18n.ts";
+import { applyTranslations, getCurrentLang, setCurrentLang, t } from "./i18n.ts";
 
 export type Band = {
 	index: number;
@@ -510,18 +510,11 @@ const selFilterType = document.getElementById("selFilterType") as HTMLSelectElem
 const filterDescBox = document.getElementById("filterDescBox") as HTMLElement;
 const filterTypeVal = document.getElementById("filterTypeVal") as HTMLElement;
 
-const filterDescriptions = {
-	"FAST-LL": "<strong>FAST-LL (Low Latency):</strong> Minimizes pre-ringing (echo before notes) and provides the lowest latency. Warm, punchy, and thick sound. Best for gaming and videos.",
-	"FAST-PC": "<strong>FAST-PC (Phase Comp):</strong> Preserves phase linearity across the entire spectrum, removing phase distortion. Highly natural, clean, and balanced sound. Best for acoustic instruments.",
-	"Slow-LL": "<strong>Slow-LL (Low Latency):</strong> Combines low latency with a gentler high-frequency roll-off. Warm, relaxed, with a wider perceived soundstage. Ideal for jazz and vocals.",
-	"Slow-PC": "<strong>Slow-PC (Phase Comp):</strong> Combines phase linearity with a gentler high-frequency roll-off. Detailed, analytical, and monitor-like sound. Great for critical listening.",
-	"NON-OS": "<strong>NON-OS (Non-Oversampling):</strong> Bypasses digital interpolation entirely. Pure, raw, and analog-like sound signature with a slight high-frequency roll-off. Recommended for a vintage sound."
-};
-
 selFilterType?.addEventListener("change", async () => {
-	const filter = selFilterType.value as keyof typeof filterDescriptions;
-	const desc = filterDescriptions[filter] || "";
-	if (filterDescBox) filterDescBox.innerHTML = desc;
+	const filter = selFilterType.value;
+	if (filterDescBox) {
+		filterDescBox.innerHTML = t("filter_desc_" + filter.toLowerCase().replace("-", "_"));
+	}
 	if (filterTypeVal) filterTypeVal.innerText = selFilterType.options[selFilterType.selectedIndex].text;
 	log(`[System] DAC Filter type set to: ${filter}`);
 	const dev = getDevice();
@@ -536,16 +529,15 @@ const ampLabelClassH = document.getElementById("ampLabelClassH") as HTMLElement;
 const ampLabelClassAB = document.getElementById("ampLabelClassAB") as HTMLElement;
 
 toggleAmpMode?.addEventListener("change", async () => {
-	const isClassH = toggleAmpMode.checked;
-	const isClassAB = !isClassH;
-	if (isClassH) {
-		ampLabelClassH?.classList.add("active");
-		ampLabelClassAB?.classList.remove("active");
-		log("[System] Amplifier topology set to: Class H (Dynamic tracking power mode)");
-	} else {
+	const isClassAB = toggleAmpMode.checked;
+	if (isClassAB) {
 		ampLabelClassH?.classList.remove("active");
 		ampLabelClassAB?.classList.add("active");
 		log("[System] Amplifier topology set to: Class AB (Linear power mode)");
+	} else {
+		ampLabelClassH?.classList.add("active");
+		ampLabelClassAB?.classList.remove("active");
+		log("[System] Amplifier topology set to: Class H (Dynamic tracking power mode)");
 	}
 	const dev = getDevice();
 	if (dev) {
@@ -581,13 +573,18 @@ const balanceVal = document.getElementById("balanceVal") as HTMLElement;
 
 sliderBalance?.addEventListener("input", () => {
 	const val = parseInt(sliderBalance.value);
-	let text = "0 (Center)";
-	if (val < 0) {
-		text = `L +${Math.abs(val)}`;
-	} else if (val > 0) {
-		text = `R +${val}`;
+	if (balanceVal) {
+		if (val === 0) {
+			balanceVal.setAttribute("data-i18n", "balance_center_val");
+			balanceVal.innerText = t("balance_center_val");
+		} else if (val < 0) {
+			balanceVal.removeAttribute("data-i18n");
+			balanceVal.innerText = `L +${Math.abs(val)}`;
+		} else {
+			balanceVal.removeAttribute("data-i18n");
+			balanceVal.innerText = `R +${val}`;
+		}
 	}
-	if (balanceVal) balanceVal.innerText = text;
 });
 sliderBalance?.addEventListener("change", async () => {
 	const val = parseInt(sliderBalance.value);
@@ -629,7 +626,8 @@ function animateMicMeters() {
 toggleMicMonitor?.addEventListener("change", () => {
 	const isOn = toggleMicMonitor.checked;
 	if (micMonitorStatus) {
-		micMonitorStatus.innerText = isOn ? "Monitoring On" : "Monitoring Off";
+		micMonitorStatus.setAttribute("data-i18n", isOn ? "monitoring_on" : "monitoring_off");
+		micMonitorStatus.innerText = isOn ? t("monitoring_on") : t("monitoring_off");
 		if (isOn) {
 			micMonitorStatus.classList.add("active");
 			log("[System] Zero-latency microphone loopback MONITORING ENABLED");
@@ -682,8 +680,8 @@ btnFactoryReset?.addEventListener("click", async () => {
 			selFilterType.value = "FAST-LL";
 			selFilterType.dispatchEvent(new Event("change"));
 		}
-		if (toggleAmpMode && toggleAmpMode.checked) {
-			toggleAmpMode.checked = false;
+		if (toggleAmpMode && !toggleAmpMode.checked) {
+			toggleAmpMode.checked = true;
 			toggleAmpMode.dispatchEvent(new Event("change"));
 		}
 		if (toggleGainMode && toggleGainMode.checked) {
@@ -1181,10 +1179,34 @@ window.addEventListener("click", (e) => {
  * LANGUAGE SWITCHING
  */
 const selLanguage = document.getElementById("selLanguage") as HTMLSelectElement;
+
+function updateDynamicTranslatedElements() {
+	if (selFilterType) {
+		const filter = selFilterType.value;
+		if (filterTypeVal) {
+			filterTypeVal.innerText = selFilterType.options[selFilterType.selectedIndex].text;
+		}
+		if (filterDescBox) {
+			filterDescBox.innerHTML = t("filter_desc_" + filter.toLowerCase().replace("-", "_"));
+		}
+	}
+	if (toggleMicMonitor && micMonitorStatus) {
+		const isOn = toggleMicMonitor.checked;
+		micMonitorStatus.innerText = isOn ? t("monitoring_on") : t("monitoring_off");
+	}
+	if (sliderBalance && balanceVal) {
+		const val = parseInt(sliderBalance.value);
+		if (val === 0) {
+			balanceVal.innerText = t("balance_center_val");
+		}
+	}
+}
+
 selLanguage?.addEventListener("change", () => {
 	const lang = selLanguage.value;
 	setCurrentLang(lang);
 	applyTranslations();
+	updateDynamicTranslatedElements();
 	renderUI(getEqState());
 	log(`[System] Language set to: ${lang.toUpperCase()}`);
 });
@@ -1197,6 +1219,7 @@ window.addEventListener("load", () => {
 	if (selLanguage) {
 		selLanguage.value = getCurrentLang();
 	}
+	updateDynamicTranslatedElements();
 });
 
 /**
