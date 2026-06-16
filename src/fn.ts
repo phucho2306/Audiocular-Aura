@@ -30,8 +30,12 @@ const MAX_HISTORY_DEPTH = 50;
 
 // A/B Comparison States
 let activeSlot: "A" | "B" = "A";
-let slotA: { eqState: EQ; globalGainState: number } | null = null;
-let slotB: { eqState: EQ; globalGainState: number } | null = null;
+let slotA: { eqState: EQ; globalGainState: number; eqName: string } | null = null;
+let slotB: { eqState: EQ; globalGainState: number; eqName: string } | null = null;
+
+export function isCompareActive(): boolean {
+	return slotA !== null && slotB !== null;
+}
 
 // Focused Band Index
 let focusedBandIndex: number = -1;
@@ -272,27 +276,43 @@ export async function toggleABCompare() {
 
 	// Lazy initialization on first compare toggle: A = current, B = flat
 	if (!slotA && !slotB) {
-		slotA = JSON.parse(JSON.stringify(current));
+		slotA = {
+			eqState: JSON.parse(JSON.stringify(current.eqState)) as EQ,
+			globalGainState: current.globalGainState,
+			eqName: lastAppliedEqName
+		};
 		slotB = {
 			eqState: defaultEqState(),
-			globalGainState: 0
+			globalGainState: 0,
+			eqName: t("flat_profile_default") || "Flat Profile (Default)"
 		};
 		activeSlot = "B";
 		
 		eqState = JSON.parse(JSON.stringify(slotB.eqState)) as EQ;
 		globalGainState = slotB.globalGainState;
+		lastAppliedEqName = slotB.eqName;
 	} else {
 		// Save current state before toggle
 		if (activeSlot === "A") {
-			slotA = current;
+			slotA = {
+				eqState: current.eqState,
+				globalGainState: current.globalGainState,
+				eqName: lastAppliedEqName
+			};
 			activeSlot = "B";
 			eqState = JSON.parse(JSON.stringify(slotB!.eqState)) as EQ;
 			globalGainState = slotB!.globalGainState;
+			lastAppliedEqName = slotB!.eqName;
 		} else {
-			slotB = current;
+			slotB = {
+				eqState: current.eqState,
+				globalGainState: current.globalGainState,
+				eqName: lastAppliedEqName
+			};
 			activeSlot = "A";
 			eqState = JSON.parse(JSON.stringify(slotA!.eqState)) as EQ;
 			globalGainState = slotA!.globalGainState;
+			lastAppliedEqName = slotA!.eqName;
 		}
 	}
 
@@ -995,7 +1015,9 @@ export async function loadCustomProfile(name: string) {
 	renderUI(eqState);
 
 	setLastAppliedEqName(`Profile: ${profile.name}`);
-	initSlots();
+	if (!isCompareActive()) {
+		initSlots();
+	}
 
 	if (device) {
 		log(`Syncing profile to DAC...`);
