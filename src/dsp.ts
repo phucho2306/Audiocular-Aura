@@ -196,7 +196,7 @@ function waitForReport(
 		}, timeoutMs);
 
 		function listener(event: any) {
-			const data = new Uint8Array(event.data.buffer);
+			const data = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
 			const cmd = data[0];
 			const subcmd = data[1];
 
@@ -421,7 +421,7 @@ export function setupListener(device: HIDDevice) {
 	const eqState = getEqState();
 	device.addEventListener("inputreport", (event) => {
 		const versionEl = document.getElementById("fwVersion");
-		const data = new Uint8Array(event.data.buffer);
+		const data = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
 		logRx(event.reportId, data);
 
 		const protocol = getProtocol(device);
@@ -540,7 +540,7 @@ export function setupListener(device: HIDDevice) {
 		} else if (cmd === CMD_SAVI.PEQ && data.byteLength >= 34) {
 			const idx = data[4];
 			if (idx < NUM_BANDS) {
-				const view = new DataView(data.buffer);
+				const view = event.data;
 				const rawFreq = view.getUint16(27, true);
 				const rawQ = view.getUint16(29, true);
 				const rawGain = view.getInt16(31, true);
