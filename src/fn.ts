@@ -54,11 +54,7 @@ export function updateLastAppliedEqUI() {
 	const lastEqEl = document.getElementById("lastAppliedEqDisplay");
 	if (lastEqEl) {
 		if (slotA && slotB) {
-			if (activeSlot === "A") {
-				lastEqEl.innerText = `${lastAppliedEqName} (Slot A)`;
-			} else {
-				lastEqEl.innerText = `${t("flat_profile_default") || "Flat Profile (Default)"} (Slot B)`;
-			}
+			lastEqEl.innerText = `${lastAppliedEqName} (Slot ${activeSlot})`;
 		} else {
 			lastEqEl.innerText = lastAppliedEqName;
 		}
