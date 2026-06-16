@@ -49,7 +49,15 @@ export function setLastAppliedEqName(name: string) {
 export function updateLastAppliedEqUI() {
 	const lastEqEl = document.getElementById("lastAppliedEqDisplay");
 	if (lastEqEl) {
-		lastEqEl.innerText = lastAppliedEqName;
+		if (slotA && slotB) {
+			if (activeSlot === "A") {
+				lastEqEl.innerText = `${lastAppliedEqName} (Slot A)`;
+			} else {
+				lastEqEl.innerText = `${t("flat_profile_default") || "Flat Profile (Default)"} (Slot B)`;
+			}
+		} else {
+			lastEqEl.innerText = lastAppliedEqName;
+		}
 	}
 }
 
@@ -310,6 +318,7 @@ function updateSlotLabel() {
 			btnABCompare.classList.remove("active");
 		}
 	}
+	updateLastAppliedEqUI();
 }
 
 export function getFocusedBandIndex() {
@@ -699,6 +708,7 @@ export async function resetToDefaults() {
 	renderUI(eqState);
 
 	setLastAppliedEqName("Flat Profile (Default)");
+	initSlots();
 
 	await syncToDevice();
 	log("Defaults applied and synced.");
@@ -724,6 +734,7 @@ export async function resetToFlat() {
 	renderUI(eqState);
 
 	setLastAppliedEqName("Flat Profile (Neutral)");
+	initSlots();
 
 	if (device) {
 		await syncToDevice();
@@ -984,6 +995,7 @@ export async function loadCustomProfile(name: string) {
 	renderUI(eqState);
 
 	setLastAppliedEqName(`Profile: ${profile.name}`);
+	initSlots();
 
 	if (device) {
 		log(`Syncing profile to DAC...`);

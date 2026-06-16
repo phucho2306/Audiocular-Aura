@@ -6,6 +6,7 @@ import {
 	setEqState,
 	setGlobalGainState,
 	setLastAppliedEqName,
+	initSlots,
 } from "./fn.ts";
 import { syncToDevice } from "./dsp.ts";
 import { log, updateGlobalGain } from "./helpers.ts";
@@ -231,6 +232,7 @@ export async function importProfile(e: Event) {
 
 			const name = `Imported: ${file.name.replace(/\.[^/.]+$/, "")}`;
 			setLastAppliedEqName(name);
+			initSlots();
 
 			const device = getDevice();
 			if (device) {
@@ -296,6 +298,7 @@ export async function loadProfileFromText(content: string, presetName?: string) 
 
 		const name = presetName || "Loaded Profile";
 		setLastAppliedEqName(name);
+		initSlots();
 
 		const device = getDevice();
 		if (device) {
