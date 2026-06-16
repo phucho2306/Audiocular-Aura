@@ -4,6 +4,7 @@
 
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg?style=flat-square)](LICENSE)
 [![Live App](https://img.shields.io/badge/Live%20App-Launch-brightgreen?style=flat-square)](https://mandy321.github.io/Audiocular-Aura/)
+[![Stars](https://img.shields.io/github/stars/mandy321/Audiocular-Aura?style=flat-square&color=yellow)](https://github.com/mandy321/Audiocular-Aura/stargazers)
 [![Tech Stack](https://img.shields.io/badge/Stack-TypeScript%20%7C%20CSS-blueviolet?style=flat-square)](#-tech-stack)
 
 ---
@@ -75,11 +76,35 @@ npm run build
 
 ## 📖 How to Use
 
-1.  Connect your compatible DAC using a desktop Chromium-based browser (Chrome, Edge, Brave, Opera).
-2.  Open **[AuraPEQ](https://mandy321.github.io/Audiocular-Aura/)** and click **CONNECT DAC**.
-3.  Load a preset from the **AutoEq Database**, My Custom Profiles, or adjust bands manually on the frequency visualizer.
-4.  Click **SYNC TO RAM** to test changes instantly.
-5.  Click **SAVE TO FLASH** to store your preset permanently on the DAC hardware.
+Follow these simple steps to configure your USB DAC hardware equalizer:
+
+### 1. Prerequisite Browser Check
+*   Ensure you are using a desktop **Chromium-based browser** (Google Chrome, Microsoft Edge, Opera, or Brave).
+*   *Note: Apple Safari, Mozilla Firefox, and mobile browsers do not support WebHID communications.*
+
+### 2. Connect Your Hardware
+1. Connect your compatible USB DAC to your computer.
+2. Open the **[AuraPEQ Web App](https://mandy321.github.io/Audiocular-Aura/)**.
+3. Click the **CONNECT DAC** button at the top and select your device in the browser pop-up.
+
+### 3. Configure Your EQ Settings
+*   🎵 **AutoEq Database**: Search from thousands of pre-calculated headphone and IEM profiles and apply them instantly.
+*   🎛️ **Interactive Visualizer**: Drag the frequency control points on the response curve graph to adjust **Gain**, **Frequency**, and **Q-factor** in real-time.
+*   ⌨️ **Manual Adjustment**: Refine parameters using the sliders or numerical inputs for each of the 10 DSP bands.
+
+### 4. Sync & Store
+*   ⚡ **SYNC TO RAM (APPLY)**: Instantly pushes parameters to the DAC's active memory to test adjustments. *Settings will reset if the DAC is disconnected.*
+*   💾 **SAVE TO FLASH (PERMANENT)**: Writes your preset permanently to the DAC's onboard storage. **Your EQ settings will now persist automatically on any player** (iPhone, Android, Nintendo Switch, PlayStation, iPad, etc.) without running any software.
+
+---
+
+## ⭐ Star the Project
+
+If you find AuraPEQ helpful, please consider giving this repository a star! It helps more people discover the project and supports continued open-source development.
+
+[![GitHub stars](https://img.shields.io/github/stars/mandy321/Audiocular-Aura?style=social)](https://github.com/mandy321/Audiocular-Aura/stargazers)
+
+---
 
 ## 🏷️ Search & Indexing Keywords
 
