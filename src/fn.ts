@@ -53,10 +53,17 @@ export function setLastAppliedEqName(name: string) {
 export function updateLastAppliedEqUI() {
 	const lastEqEl = document.getElementById("lastAppliedEqDisplay");
 	if (lastEqEl) {
+		let displayName = lastAppliedEqName;
+		if (displayName === "Flat Profile (Default)") {
+			displayName = t("flat_profile_default") || "Flat Profile (Default)";
+		} else if (displayName === "Flat Profile (Neutral)") {
+			displayName = t("flat_profile_neutral") || "Flat Profile (Neutral)";
+		}
+
 		if (slotA && slotB) {
-			lastEqEl.innerText = `${lastAppliedEqName} (Slot ${activeSlot})`;
+			lastEqEl.innerText = `${displayName} (Slot ${activeSlot})`;
 		} else {
-			lastEqEl.innerText = lastAppliedEqName;
+			lastEqEl.innerText = displayName;
 		}
 	}
 }
