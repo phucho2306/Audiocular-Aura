@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg?style=flat-square)](LICENSE)
 [![Live App](https://img.shields.io/badge/Live%20App-Launch-brightgreen?style=flat-square)](https://mandy321.github.io/Audiocular-Aura/)
-[![Stars](https://img.shields.io/github/stars/mandy321/Audiocular-Aura?style=flat-square&color=yellow)](https://github.com/mandy321/Audiocular-Aura/stargazers)
+[![Stars](https://badgen.net/github/stars/mandy321/Audiocular-Aura?color=yellow)](https://github.com/mandy321/Audiocular-Aura/stargazers)
 [![Tech Stack](https://img.shields.io/badge/Stack-TypeScript%20%7C%20CSS-blueviolet?style=flat-square)](#-tech-stack)
 
 ---
@@ -107,7 +107,7 @@ Follow these simple steps to configure your USB DAC hardware equalizer:
 
 If you find AuraPEQ helpful, please consider giving this repository a star! It helps more people discover the project and supports continued open-source development.
 
-[![GitHub stars](https://img.shields.io/github/stars/mandy321/Audiocular-Aura?style=social)](https://github.com/mandy321/Audiocular-Aura/stargazers)
+[![GitHub stars](https://badgen.net/github/stars/mandy321/Audiocular-Aura?icon=github&label=Star)](https://github.com/mandy321/Audiocular-Aura/stargazers)
 
 ---
 
