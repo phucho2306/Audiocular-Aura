@@ -348,17 +348,25 @@ setTimeout(() => initializeAutoEqIndex(), 1000);
 
 async function initializeAutoEqIndex(forceRefresh = false) {
 	if (isFetchingIndex) return;
-	if (!forceRefresh && allPresets.length > 0) return;
+	const presetsReady = !forceRefresh && allPresets.length > 0;
+	const scoresReady = !forceRefresh && Object.keys(harmanScores).length > 0;
+	if (presetsReady && scoresReady) return;
 
 	isFetchingIndex = true;
-	updateDropdownUI("loading");
+	if (!presetsReady) updateDropdownUI("loading");
 
 	try {
-		allPresets = await getAutoEqPresets(forceRefresh);
-		try {
-			harmanScores = await getHarmanScores(forceRefresh);
-		} catch (e) {
-			console.error("Failed to load Harman preference scores", e);
+		if (!presetsReady) {
+			allPresets = await getAutoEqPresets(forceRefresh);
+		}
+		if (!scoresReady) {
+			try {
+				harmanScores = await getHarmanScores(forceRefresh);
+				// Re-render favorites now that Harman scores are available
+				renderFavorites();
+			} catch (e) {
+				console.error("Failed to load Harman preference scores", e);
+			}
 		}
 		updateDropdownUI("idle");
 	} catch (err) {

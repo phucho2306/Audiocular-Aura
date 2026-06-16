@@ -7,6 +7,7 @@ export interface AutoEqPreset {
 }
 
 let cachedPresets: AutoEqPreset[] = [];
+const APP_VERSION = "1.1.0";
 
 /**
  * Fetch and index the AutoEq presets tree from jaakkopasanen/AutoEq on GitHub
@@ -19,12 +20,14 @@ export async function getAutoEqPresets(forceRefresh = false): Promise<AutoEqPres
 	// 1. Check LocalStorage Cache
 	const cachedData = localStorage.getItem("autoeq_presets");
 	const cacheTime = localStorage.getItem("autoeq_presets_time");
+	const cacheVersion = localStorage.getItem("autoeq_presets_version");
 	const cacheDuration = 7 * 24 * 60 * 60 * 1000; // 7 Days in milliseconds
 
 	if (
 		!forceRefresh &&
 		cachedData &&
 		cacheTime &&
+		cacheVersion === APP_VERSION &&
 		Date.now() - Number(cacheTime) < cacheDuration
 	) {
 		try {
@@ -52,7 +55,7 @@ export async function getAutoEqPresets(forceRefresh = false): Promise<AutoEqPres
 		const presets: AutoEqPreset[] = [];
 
 		// Match pattern: - [Model Name](./relativePath)
-		const regex = /^-\s+\[(.*?)\]\(\.\/(.*?)\)/;
+		const regex = /^-\s+\[(.*?)\]\(\.\/(.*?)\)\s+by/;
 
 		for (const line of lines) {
 			const match = line.trim().match(regex);
@@ -85,6 +88,7 @@ export async function getAutoEqPresets(forceRefresh = false): Promise<AutoEqPres
 		cachedPresets = presets;
 		localStorage.setItem("autoeq_presets", JSON.stringify(presets));
 		localStorage.setItem("autoeq_presets_time", Date.now().toString());
+		localStorage.setItem("autoeq_presets_version", APP_VERSION);
 
 		log(`Successfully loaded & cached ${presets.length} headphone presets from AutoEq.`);
 		return presets;
@@ -139,7 +143,6 @@ export async function loadPreset(preset: AutoEqPreset) {
 }
 
 let cachedScores: Record<string, number> | null = null;
-const APP_VERSION = "1.0.0";
 
 export async function getHarmanScores(forceRefresh = false): Promise<Record<string, number>> {
 	if (!forceRefresh && cachedScores) return cachedScores;
