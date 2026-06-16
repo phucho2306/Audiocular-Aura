@@ -9,8 +9,8 @@ import {
 	VID_AUDIOCULAR,
 	activeDacs,
 } from "./constants.ts";
-import { readDeviceParams, setupListener, syncToDevice, queueRealtimeBandWrite, getProtocol } from "./dsp.ts";
-import { enableControls, log, updateGlobalGainUI, refreshStripUI, updateGlobalGain, configurePreampUI } from "./helpers.ts";
+import { readDeviceParams, setupListener, syncToDevice, queueRealtimeBandWrite, getProtocol, getActiveProtocol } from "./dsp.ts";
+import { enableControls, log, updateGlobalGainUI, refreshStripUI, updateGlobalGain, configurePreampUI, createRatingElement, createNotesElement } from "./helpers.ts";
 import type { Band, EQ } from "./main.ts";
 import { renderPEQ, resizeCanvas } from "./peq.ts";
 import { t } from "./i18n.ts";
@@ -506,6 +506,7 @@ export function renderUI(eqState: EQ) {
 							<option value="PK" ${band.type === "PK" ? "selected" : ""}>${t("band_type_peak") || "Peak"}</option>
 							<option value="LSQ" ${band.type === "LSQ" ? "selected" : ""}>${t("band_type_low") || "Low Shelf"}</option>
 							<option value="HSQ" ${band.type === "HSQ" ? "selected" : ""}>${t("band_type_high") || "High Shelf"}</option>
+							<option value="NOTCH" ${band.type === "NOTCH" ? "selected" : ""}>${t("band_type_notch") || "Notch"}</option>
 						</select>
 					</div>
 				`;
@@ -727,7 +728,14 @@ export async function resetToDefaults() {
 		stripsContainer.innerHTML = "";
 	}
 
-	setGlobalGain(0);
+	resetTiltState();
+
+	if (autoPreampEnabled) {
+		manualPreampState = 0;
+		await recalculateAutoPreamp();
+	} else {
+		setGlobalGain(0);
+	}
 	renderUI(eqState);
 
 	setLastAppliedEqName("Flat Profile (Default)");
@@ -753,7 +761,14 @@ export async function resetToFlat() {
 		enabled: true,
 	})) as EQ;
 
-	setGlobalGain(0);
+	resetTiltState();
+
+	if (autoPreampEnabled) {
+		manualPreampState = 0;
+		await recalculateAutoPreamp();
+	} else {
+		setGlobalGain(0);
+	}
 	renderUI(eqState);
 
 	setLastAppliedEqName("Flat Profile (Neutral)");
@@ -769,7 +784,7 @@ export async function resetToFlat() {
 /**
  * Update band properties from user inputs
  */
-export function updateState(
+export async function updateState(
 	index: number,
 	key: string,
 	value: string | number | boolean,
@@ -779,6 +794,18 @@ export function updateState(
 	else if (key === "enabled") value = Boolean(value);
 
 	setEQ(index, key as keyof Band, value);
+
+	if (key === "type" && value === "NOTCH") {
+		setEQ(index, "q", 4.0);
+		if (eqState[index].gain >= 0) {
+			setEQ(index, "gain", -6.0);
+		}
+	}
+
+	if (autoPreampEnabled) {
+		await recalculateAutoPreamp();
+	}
+
 	renderUI(eqState);
 
 	setLastAppliedEqName("Custom Profile (Tweaked)");
@@ -1011,10 +1038,14 @@ export async function loadCustomProfile(name: string) {
 	}
 
 	eqState = importedBands;
-	globalGainState = profile.globalGain;
-
-	// Update UI and send preamp packet
-	await updateGlobalGain(profile.globalGain);
+	resetTiltState();
+	if (autoPreampEnabled) {
+		manualPreampState = profile.globalGain;
+		await recalculateAutoPreamp();
+	} else {
+		globalGainState = profile.globalGain;
+		await updateGlobalGain(profile.globalGain);
+	}
 	renderUI(eqState);
 
 	setLastAppliedEqName(`Profile: ${profile.name}`);
@@ -1063,10 +1094,339 @@ export function renderCustomProfiles() {
 			deleteCustomProfile(profile.name);
 		});
 
-		div.appendChild(nameSpan);
-		div.appendChild(deleteBtn);
+		const topRow = document.createElement("div");
+		topRow.className = "custom-profile-top-row";
+		topRow.appendChild(nameSpan);
+		topRow.appendChild(deleteBtn);
+		div.appendChild(topRow);
+
+		// Add meta row for rating and notes
+		const metaDiv = document.createElement("div");
+		metaDiv.className = "custom-profile-meta";
+		metaDiv.appendChild(createRatingElement(`custom_${profile.name}`));
+		metaDiv.appendChild(createNotesElement(`custom_${profile.name}`));
+		div.appendChild(metaDiv);
+
 		container.appendChild(div);
 	});
 }
+
+let bassTiltState: number = 0;
+let trebleTiltState: number = 0;
+let autoPreampEnabled: boolean = false;
+let manualPreampState: number = 0;
+
+export function getBassTiltState() { return bassTiltState; }
+export function setBassTiltState(val: number) { bassTiltState = val; }
+export function getTrebleTiltState() { return trebleTiltState; }
+export function setTrebleTiltState(val: number) { trebleTiltState = val; }
+export function getAutoPreampEnabled() { return autoPreampEnabled; }
+export function setAutoPreampEnabled(val: boolean) { autoPreampEnabled = val; }
+export function getManualPreampState() { return manualPreampState; }
+export function setManualPreampState(val: number) { manualPreampState = val; }
+
+function getBiquadGainAtFreq(
+	type: string,
+	filterFreq: number,
+	filterGain: number,
+	filterQ: number,
+	targetFreq: number,
+	sampleRate: number
+): number {
+	if (filterGain === 0) return 0;
+
+	const w0 = (2 * Math.PI * filterFreq) / sampleRate;
+	const alpha = Math.sin(w0) / (2 * filterQ);
+	const A = 10 ** (filterGain / 40);
+	const cosw = Math.cos(w0);
+
+	let b0 = 1, b1 = 0, b2 = 0, a0 = 1, a1 = 0, a2 = 0;
+
+	if (type === "LSQ") {
+		const sa = 2 * Math.sqrt(A) * alpha;
+		b0 = A * (A + 1 - (A - 1) * cosw + sa);
+		b1 = 2 * A * (A - 1 - (A + 1) * cosw);
+		b2 = A * (A + 1 - (A - 1) * cosw - sa);
+		a0 = A + 1 + (A - 1) * cosw + sa;
+		a1 = -2 * (A - 1 + (A + 1) * cosw);
+		a2 = A + 1 + (A - 1) * cosw - sa;
+	} else if (type === "HSQ") {
+		const sb = 2 * Math.sqrt(A) * alpha;
+		b0 = A * (A + 1 + (A - 1) * cosw + sb);
+		b1 = -2 * A * (A - 1 + (A + 1) * cosw);
+		b2 = A * (A + 1 + (A - 1) * cosw - sb);
+		a0 = A + 1 - (A - 1) * cosw + sb;
+		a1 = 2 * (A - 1 - (A + 1) * cosw);
+		a2 = A + 1 - (A - 1) * cosw - sb;
+	} else {
+		return 0;
+	}
+
+	const b0_n = b0 / a0;
+	const b1_n = b1 / a0;
+	const b2_n = b2 / a0;
+	const a1_n = a1 / a0;
+	const a2_n = a2 / a0;
+
+	const w = (2 * Math.PI * targetFreq) / sampleRate;
+	const cosw_t = Math.cos(w);
+	const sinw_t = Math.sin(w);
+	const cos2w_t = Math.cos(2 * w);
+	const sin2w_t = Math.sin(2 * w);
+
+	const num_r = b0_n + b1_n * cosw_t + b2_n * cos2w_t;
+	const num_i = -(b1_n * sinw_t + b2_n * sin2w_t);
+	const den_r = 1 + a1_n * cosw_t + a2_n * cos2w_t;
+	const den_i = -(a1_n * sinw_t + a2_n * sin2w_t);
+
+	const num_mag2 = num_r * num_r + num_i * num_i;
+	const den_mag2 = den_r * den_r + den_i * den_i;
+
+	if (den_mag2 <= 0) return 0;
+	const mag = Math.sqrt(num_mag2 / den_mag2);
+	return 20 * Math.log10(mag);
+}
+
+export function getTiltGainAtFreq(freq: number): number {
+	const sampleRate = 48000;
+	const bassGain = getBiquadGainAtFreq("LSQ", 105, bassTiltState, 0.707, freq, sampleRate);
+	const trebleGain = getBiquadGainAtFreq("HSQ", 8000, trebleTiltState, 0.707, freq, sampleRate);
+	return bassGain + trebleGain;
+}
+
+export function getMagnitudeAtFreq(freq: number): number {
+	const sampleRate = 48000;
+	let totalDb = 0;
+
+	for (const band of eqState) {
+		if (!band.enabled) continue;
+		
+		const w0 = (2 * Math.PI * band.freq) / sampleRate;
+		const alpha = Math.sin(w0) / (2 * band.q);
+		const A = 10 ** (band.gain / 40);
+		const cosw = Math.cos(w0);
+
+		let b0 = 1, b1 = 0, b2 = 0, a0 = 1, a1 = 0, a2 = 0;
+
+		switch (band.type) {
+			case "NOTCH":
+				b0 = 1;
+				b1 = -2 * cosw;
+				b2 = 1;
+				a0 = 1 + alpha;
+				a1 = -2 * cosw;
+				a2 = 1 - alpha;
+				break;
+			case "PK":
+				b0 = 1 + alpha * A;
+				b1 = -2 * cosw;
+				b2 = 1 - alpha * A;
+				a0 = 1 + alpha / A;
+				a1 = -2 * cosw;
+				a2 = 1 - alpha / A;
+				break;
+			case "LSQ": {
+				const sa = 2 * Math.sqrt(A) * alpha;
+				b0 = A * (A + 1 - (A - 1) * cosw + sa);
+				b1 = 2 * A * (A - 1 - (A + 1) * cosw);
+				b2 = A * (A + 1 - (A - 1) * cosw - sa);
+				a0 = A + 1 + (A - 1) * cosw + sa;
+				a1 = -2 * (A - 1 + (A + 1) * cosw);
+				a2 = A + 1 + (A - 1) * cosw - sa;
+				break;
+			}
+			case "HSQ": {
+				const sb = 2 * Math.sqrt(A) * alpha;
+				b0 = A * (A + 1 + (A - 1) * cosw + sb);
+				b1 = -2 * A * (A - 1 + (A + 1) * cosw);
+				b2 = A * (A + 1 + (A - 1) * cosw - sb);
+				a0 = A + 1 - (A - 1) * cosw + sb;
+				a1 = 2 * (A - 1 - (A + 1) * cosw);
+				a2 = A + 1 - (A - 1) * cosw - sb;
+				break;
+			}
+		}
+
+		const b0_n = b0 / a0;
+		const b1_n = b1 / a0;
+		const b2_n = b2 / a0;
+		const a1_n = a1 / a0;
+		const a2_n = a2 / a0;
+
+		const w = (2 * Math.PI * freq) / sampleRate;
+		const cos1 = Math.cos(w);
+		const cos2 = Math.cos(2 * w);
+		const sin1 = Math.sin(w);
+		const sin2 = Math.sin(2 * w);
+
+		const numRe = b0_n + b1_n * cos1 + b2_n * cos2;
+		const numIm = -(b1_n * sin1 + b2_n * sin2);
+		const denRe = 1 + a1_n * cos1 + a2_n * cos2;
+		const denIm = -(a1_n * sin1 + a2_n * sin2);
+
+		const magSq = (numRe * numRe + numIm * numIm) / (denRe * denRe + denIm * denIm);
+		if (magSq > 0) {
+			totalDb += 10 * Math.log10(magSq);
+		}
+	}
+
+	totalDb += getTiltGainAtFreq(freq);
+	return totalDb;
+}
+
+export function calculateCombinedPeakGain(): number {
+	let maxGain = -Infinity;
+	const minFreq = 20;
+	const maxFreq = 20000;
+	const numPoints = 200;
+
+	for (let i = 0; i < numPoints; i++) {
+		const freq = minFreq * (maxFreq / minFreq) ** (i / (numPoints - 1));
+		const gain = getMagnitudeAtFreq(freq);
+		if (gain > maxGain) {
+			maxGain = gain;
+		}
+	}
+	return maxGain;
+}
+
+export async function recalculateAutoPreamp() {
+	if (!autoPreampEnabled) return;
+	const protocol = getActiveProtocol();
+	let peak = calculateCombinedPeakGain();
+	let targetPreamp = 0;
+	if (peak > 0) {
+		targetPreamp = -peak;
+	}
+	
+	if (protocol === "SAVITECH") {
+		targetPreamp = Math.round(targetPreamp);
+	} else {
+		targetPreamp = Math.round(targetPreamp * 10) / 10;
+	}
+
+	targetPreamp = Math.max(-20, Math.min(0, targetPreamp));
+
+	globalGainState = targetPreamp;
+	await updateGlobalGain(globalGainState);
+}
+
+export async function toggleAutoPreamp(enabled: boolean) {
+	autoPreampEnabled = enabled;
+	if (autoPreampEnabled) {
+		manualPreampState = globalGainState;
+		const globalGainSlider = document.getElementById("globalGainSlider") as HTMLInputElement;
+		if (globalGainSlider) globalGainSlider.disabled = true;
+		await recalculateAutoPreamp();
+	} else {
+		const globalGainSlider = document.getElementById("globalGainSlider") as HTMLInputElement;
+		if (globalGainSlider && device) {
+			globalGainSlider.disabled = false;
+		}
+		globalGainState = manualPreampState;
+		await updateGlobalGain(globalGainState);
+	}
+}
+
+(window as any).getAutoPreampEnabled = getAutoPreampEnabled;
+(window as any).setAutoPreampEnabled = setAutoPreampEnabled;
+(window as any).getManualPreampState = getManualPreampState;
+(window as any).setManualPreampState = setManualPreampState;
+(window as any).recalculateAutoPreamp = recalculateAutoPreamp;
+(window as any).toggleAutoPreamp = toggleAutoPreamp;
+(window as any).getBassTiltState = getBassTiltState;
+(window as any).setBassTiltState = setBassTiltState;
+(window as any).getTrebleTiltState = getTrebleTiltState;
+(window as any).setTrebleTiltState = setTrebleTiltState;
+(window as any).getTiltGainAtFreq = getTiltGainAtFreq;
+
+export function isConfigurationUnsafe(): boolean {
+	if (globalGainState > 0) return true;
+
+	for (const band of eqState) {
+		if (band.enabled && band.gain > 10) return true;
+	}
+
+	const peak = calculateCombinedPeakGain();
+	if (peak > 12) return true;
+
+	let totalBoost = 0;
+	for (const band of eqState) {
+		if (band.enabled && band.gain > 0) {
+			totalBoost += band.gain;
+		}
+	}
+	if (totalBoost > 15) return true;
+
+	return false;
+}
+
+export async function reduceGainsSafely() {
+	let changed = false;
+
+	if (globalGainState > 0) {
+		globalGainState = 0;
+		changed = true;
+	}
+
+	for (let i = 0; i < eqState.length; i++) {
+		if (eqState[i].enabled && eqState[i].gain > 10) {
+			eqState[i].gain = 10;
+			changed = true;
+		}
+	}
+
+	let peak = calculateCombinedPeakGain();
+	if (peak > 12) {
+		globalGainState -= (peak - 12);
+		changed = true;
+	}
+
+	const protocol = getActiveProtocol();
+	if (protocol === "SAVITECH") {
+		globalGainState = Math.round(globalGainState);
+	} else {
+		globalGainState = Math.round(globalGainState * 10) / 10;
+	}
+	globalGainState = Math.max(-20, Math.min(0, globalGainState));
+
+	if (changed) {
+		await updateGlobalGain(globalGainState);
+		renderUI(eqState);
+		
+		if (autoPreampEnabled) {
+			await recalculateAutoPreamp();
+		}
+
+		if (device) {
+			await syncToDevice();
+		}
+		pushHistory();
+	}
+}
+
+(window as any).isConfigurationUnsafe = isConfigurationUnsafe;
+(window as any).reduceGainsSafely = reduceGainsSafely;
+
+export function resetTiltState() {
+	bassTiltState = 0;
+	trebleTiltState = 0;
+	
+	const slideBassTilt = document.getElementById("slideBassTilt") as HTMLInputElement;
+	const slideTrebleTilt = document.getElementById("slideTrebleTilt") as HTMLInputElement;
+	const lblBassTilt = document.getElementById("lblBassTilt") as HTMLElement;
+	const lblTrebleTilt = document.getElementById("lblTrebleTilt") as HTMLElement;
+	const tiltTextValue = document.getElementById("tiltTextValue") as HTMLElement;
+
+	if (slideBassTilt) slideBassTilt.value = "0";
+	if (slideTrebleTilt) slideTrebleTilt.value = "0";
+	if (lblBassTilt) lblBassTilt.innerText = "0.0 dB";
+	if (lblTrebleTilt) lblTrebleTilt.innerText = "0.0 dB";
+	if (tiltTextValue) tiltTextValue.innerText = "Bass: +0.0 dB, Treble: +0.0 dB";
+}
+(window as any).resetTiltState = resetTiltState;
+
+
+
 
 

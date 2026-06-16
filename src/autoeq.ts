@@ -137,3 +137,81 @@ export async function loadPreset(preset: AutoEqPreset) {
 		log(`Error downloading preset: ${(err as Error).message}`);
 	}
 }
+
+let cachedScores: Record<string, number> | null = null;
+const APP_VERSION = "1.0.0";
+
+export async function getHarmanScores(forceRefresh = false): Promise<Record<string, number>> {
+	if (!forceRefresh && cachedScores) return cachedScores;
+
+	const cacheData = localStorage.getItem("autoeq_scores");
+	const cacheTime = localStorage.getItem("autoeq_scores_time");
+	const cacheVersion = localStorage.getItem("autoeq_scores_version");
+	const cacheDuration = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+	if (
+		!forceRefresh &&
+		cacheData &&
+		cacheTime &&
+		cacheVersion === APP_VERSION &&
+		Date.now() - Number(cacheTime) < cacheDuration
+	) {
+		try {
+			cachedScores = JSON.parse(cacheData);
+			return cachedScores!;
+		} catch (e) {
+			console.error("Failed to parse cached Harman scores", e);
+		}
+	}
+
+	log("Fetching Harman target preference scores index...");
+	try {
+		const response = await fetch(
+			"https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/results/RANKING.md"
+		);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch RANKING.md: ${response.status} ${response.statusText}`);
+		}
+
+		const text = await response.text();
+		const lines = text.split(/\r?\n/);
+		const scores: Record<string, number> = {};
+
+		// Regex: match | [Model](./relativePath) | Score |
+		const regex = /^\|\s+\[(.*?)\]\(\.\/(.*?)\)\s+\|\s+(-?\d+)\s+\|/;
+
+		for (const line of lines) {
+			const match = line.trim().match(regex);
+			if (match) {
+				const relPathEscaped = match[2];
+				const decodedPath = decodeURIComponent(relPathEscaped); // e.g. oratory1990/over-ear/Sennheiser HD 650
+				const score = parseInt(match[3], 10);
+				scores[decodedPath] = score;
+			}
+		}
+
+		cachedScores = scores;
+		localStorage.setItem("autoeq_scores", JSON.stringify(scores));
+		localStorage.setItem("autoeq_scores_time", Date.now().toString());
+		localStorage.setItem("autoeq_scores_version", APP_VERSION);
+
+		log(`Successfully loaded and cached ${Object.keys(scores).length} preference scores.`);
+		return scores;
+	} catch (e) {
+		log(`Failed to load Harman preference scores: ${(e as Error).message}`);
+		if (cacheData) {
+			log("Loading stale Harman scores cache as fallback.");
+			cachedScores = JSON.parse(cacheData);
+			return cachedScores!;
+		}
+		return {};
+	}
+}
+
+export function getPresetHarmanScore(preset: AutoEqPreset, scores: Record<string, number>): number | null {
+	const matchPath = preset.path
+		.replace(/^results\//, "")
+		.replace(/\/[^\/]+ ParametricEQ\.txt$/, "");
+	return scores[matchPath] !== undefined ? scores[matchPath] : null;
+}
+

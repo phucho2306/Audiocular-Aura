@@ -78,6 +78,14 @@ function calculateBiquad(band: Band, sampleRate: number = 48000) {
 	let b0, b1, b2, a0, a1, a2;
 
 	switch (band.type) {
+		case "NOTCH":
+			b0 = 1;
+			b1 = -2 * cosw;
+			b2 = 1;
+			a0 = 1 + alpha;
+			a1 = -2 * cosw;
+			a2 = 1 - alpha;
+			break;
 		case "PK": // Peaking EQ
 			b0 = 1 + alpha * A;
 			b1 = -2 * cosw;
@@ -230,7 +238,43 @@ function drawGrid(c: CanvasRenderingContext2D, width: number, height: number) {
  */
 function drawCurve(c: CanvasRenderingContext2D, width: number, height: number) {
 	const activeCoeffs = localBands.map((b) => calculateBiquad(b));
+	const endX = width - CONFIG.padding;
+	const startX = CONFIG.padding;
 
+	const bassTilt = (window as any).getBassTiltState?.() || 0;
+	const trebleTilt = (window as any).getTrebleTiltState?.() || 0;
+
+	// 1. Draw tilt-only dashed reference curve
+	if (bassTilt !== 0 || trebleTilt !== 0) {
+		c.beginPath();
+		c.strokeStyle = "rgba(139, 92, 246, 0.4)"; // Subtle semi-transparent violet
+		c.lineWidth = 1.5;
+		c.setLineDash([4, 4]);
+		
+		for (let i = 0; i <= endX - startX; i++) {
+			const x = startX + i;
+			const freq = xToFreq(x, width);
+			const tiltGain = (window as any).getTiltGainAtFreq?.(freq) || 0;
+			const y = gainToY(tiltGain, height);
+			
+			if (i === 0) c.moveTo(x, y);
+			else c.lineTo(x, y);
+		}
+		c.stroke();
+		c.setLineDash([]); // Reset dashed state
+		
+		// Draw text legend/tag on the canvas
+		c.fillStyle = "rgba(255, 255, 255, 0.5)";
+		c.font = "11px 'Outfit', sans-serif";
+		c.textAlign = "left";
+		c.fillText(
+			`Tilt: Bass ${bassTilt >= 0 ? "+" : ""}${bassTilt.toFixed(1)} dB / Treble ${trebleTilt >= 0 ? "+" : ""}${trebleTilt.toFixed(1)} dB`,
+			CONFIG.padding + 10,
+			CONFIG.padding + 20
+		);
+	}
+
+	// 2. Draw combined curve (with active EQ + virtual tilt filters)
 	c.beginPath();
 	
 	// Create a beautiful glowing gradient for the EQ curve
@@ -244,13 +288,11 @@ function drawCurve(c: CanvasRenderingContext2D, width: number, height: number) {
 	c.shadowBlur = 15;
 	c.shadowColor = "rgba(167, 139, 250, 0.5)"; // Aura glow
 
-	const endX = width - CONFIG.padding;
-	const startX = CONFIG.padding;
-
 	for (let i = 0; i <= endX - startX; i++) {
 		const x = startX + i;
 		const freq = xToFreq(x, width);
-		const totalGain = getMagnitude(freq, activeCoeffs);
+		const tiltGain = (window as any).getTiltGainAtFreq?.(freq) || 0;
+		const totalGain = getMagnitude(freq, activeCoeffs) + tiltGain;
 		const y = gainToY(totalGain, height);
 
 		if (i === 0) c.moveTo(x, y);

@@ -18,6 +18,7 @@ import {
 	getGlobalGainState,
 	renderUI,
 	setGlobalGain,
+	getTiltGainAtFreq,
 } from "./fn.ts";
 import { delay, log, refreshStripUI, logTx, logRx } from "./helpers.ts";
 import type { Band } from "./main.ts";
@@ -665,7 +666,11 @@ export async function writeBand(
 	band: Band,
 	protocol: string,
 ) {
-	const effectiveGain = band.enabled ? band.gain : 0;
+	let val = (band.enabled ? band.gain : 0) + getTiltGainAtFreq(band.freq);
+	if (protocol === "SAVITECH") {
+		val = Math.round(val);
+	}
+	const effectiveGain = Math.max(-12, Math.min(12, val));
 
 	if (protocol === "FIIO") {
 		await writeBandFiio(device, band, effectiveGain);
@@ -913,6 +918,16 @@ function computeBiquadCoeffs(
 	let b0, b1, b2, a0, a1, a2;
 
 	switch (type) {
+		case "NOTCH": {
+			// Notch filter
+			b0 = 1;
+			b1 = -2 * cosw;
+			b2 = 1;
+			a0 = 1 + alpha;
+			a1 = -2 * cosw;
+			a2 = 1 - alpha;
+			break;
+		}
 		case "LSQ": {
 			// Low Shelf
 			const sa = 2 * Math.sqrt(A) * alpha;

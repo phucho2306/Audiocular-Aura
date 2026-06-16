@@ -293,10 +293,16 @@ export async function loadProfileFromText(content: string, presetName?: string) 
 
 		// Update internal state
 		setEqState(importedBands);
-		setGlobalGainState(profile.globalGain);
-
-		// Update UI and send preamp packet
-		updateGlobalGain(profile.globalGain);
+		(window as any).resetTiltState?.();
+		
+		const autoPreamp = (window as any).getAutoPreampEnabled?.();
+		if (autoPreamp) {
+			(window as any).setManualPreampState?.(profile.globalGain);
+			await (window as any).recalculateAutoPreamp?.();
+		} else {
+			setGlobalGainState(profile.globalGain);
+			await updateGlobalGain(profile.globalGain);
+		}
 		renderUI(importedBands);
 
 		const name = presetName || "Loaded Profile";

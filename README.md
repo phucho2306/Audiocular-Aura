@@ -19,7 +19,12 @@ When you save your custom EQ settings, they are written permanently to the DAC's
 
 ## ✨ Features
 
-*   🔊 **Hardware-Level DSP**: RBJ cookbook filters (Peak, Low Shelf, High Shelf) processed directly on the DAC.
+*   🔊 **Hardware-Level DSP**: RBJ cookbook filters (Peak, Low Shelf, High Shelf, and Notch) processed directly on the DAC.
+*   🛡️ **Ear Protection Alerts**: Automated warning prompts for unsafe volume/gain sync thresholds with a one-click real-time correction engine.
+*   📉 **Global Bass/Treble Tilt**: Layered low-shelf and high-shelf global tilt sliders with active dashed indicators convolved mathematically on top of the physical bands.
+*   📐 **Auto Preamp Headroom**: Real-time combined EQ curve analysis to dynamically apply clipping prevention headroom depending on device protocol precision.
+*   ⭐ **Harman Preference Scores**: On-demand rankings index lookup from the official AutoEq index database with stars indicator.
+*   📝 **Preset Ratings & Notes**: Apply star ratings and persist customized notes to presets and custom profiles locally.
 *   ⚡ **Instant Real-Time Sync**: Smooth visualizer edits (Gain, Freq, Q) are throttled and pushed instantly to the device.
 *   🔄 **EQ A/B Comparison**: Swap between slot configurations to easily compare presets.
 *   ↩️ **Undo/Redo History**: Debounced state-based history traversal (up to 50 snapshots depth) with hardware sync.

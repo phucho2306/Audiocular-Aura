@@ -77,14 +77,20 @@
 
           <!-- Preamp Gain -->
           <div class="preamp-group">
-            <div class="preamp-labels">
-              <span class="preamp-title" data-i18n="preamp_title">Pre-Amp Gain</span>
-              <span id="globalGainDisplay" class="preamp-value">0 dB</span>
-              <span id="preampAppliedNote" class="preamp-applied-note" style="display: none;"></span>
+            <div class="preamp-labels" style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="preamp-title-col">
+                <span class="preamp-title" data-i18n="preamp_title">Pre-Amp Gain</span>
+                <span id="globalGainDisplay" class="preamp-value">0 dB</span>
+              </div>
+              <label class="auto-preamp-toggle-wrapper" style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.7);">
+                <input type="checkbox" id="checkAutoPreamp" style="cursor: pointer;">
+                <span>Auto Preamp</span>
+              </label>
             </div>
             <div class="preamp-slider-wrapper">
               <input type="range" id="globalGainSlider" min="-20" max="10" step="1" value="0" class="preamp-slider" disabled aria-label="Adjust Pre-Amp Gain">
               <span id="preampStepIndicator" class="preamp-step-indicator">Connect DAC to enable controls</span>
+              <span id="preampAppliedNote" class="preamp-applied-note" style="display: none;"></span>
             </div>
           </div>
         </div>
@@ -184,10 +190,33 @@
 
       <!-- EQ Strips Card (Showing all 10 bands side-by-side) -->
       <section class="control-card strips-card">
-        <div class="card-header">
-          <h2 class="card-title" data-i18n="bands_title">EQ Bands Controller</h2>
-          <p class="card-subtitle" data-i18n="bands_subtitle">Adjust parametric values for each of the 10 DSP bands.</p>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
+          <div>
+            <h2 class="card-title" data-i18n="bands_title">EQ Bands Controller</h2>
+            <p class="card-subtitle" data-i18n="bands_subtitle">Adjust parametric values for each of the 10 DSP bands.</p>
+          </div>
+          
+          <!-- Global Tone Tilt Sub-panel -->
+          <div class="tilt-control-panel">
+            <div class="tilt-header-row">
+              <span class="tilt-panel-title">Global Tone Tilt</span>
+              <span id="tiltTextValue" class="tilt-values-label">Bass: +0.0 dB, Treble: +0.0 dB</span>
+            </div>
+            <div class="tilt-sliders-row">
+              <div class="tilt-slider-group">
+                <label for="slideBassTilt" class="tilt-slider-label">Bass</label>
+                <input type="range" id="slideBassTilt" min="-6" max="6" step="0.1" value="0" class="tilt-slider" disabled>
+                <span id="lblBassTilt" class="tilt-value-badge">0.0 dB</span>
+              </div>
+              <div class="tilt-slider-group">
+                <label for="slideTrebleTilt" class="tilt-slider-label">Treble</label>
+                <input type="range" id="slideTrebleTilt" min="-6" max="6" step="0.1" value="0" class="tilt-slider" disabled>
+                <span id="lblTrebleTilt" class="tilt-value-badge">0.0 dB</span>
+              </div>
+            </div>
+          </div>
         </div>
+
         <div id="eqStrips" class="eq-strips-grid">
           <!-- Rendered dynamically by fn.ts -->
         </div>
@@ -549,6 +578,29 @@
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Ear Protection Safety Warning Modal Dialog -->
+  <div id="modalSafetyWarning" class="modal-overlay hidden">
+    <div class="modal-content safety-warning-content">
+      <div class="modal-header">
+        <h3 class="modal-title warning-title">⚠️ Ear Protection Warning</h3>
+        <button id="btnCloseSafetyModal" class="btn-close-modal" aria-label="Close safety warning">✖</button>
+      </div>
+      <p class="modal-desc safety-desc">
+        Your current EQ configuration exceeds safe listening thresholds. Syncing this profile to your DAC may cause permanent hearing damage or sudden loud pops.
+      </p>
+      <div class="safety-reasons-box">
+        <ul id="safetyWarningReasons">
+          <!-- Reasons will be injected dynamically -->
+        </ul>
+      </div>
+      <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+        <button id="btnSafetyCancel" class="btn btn-secondary">Cancel</button>
+        <button id="btnSafetyProceed" class="btn btn-danger">Proceed Anyway</button>
+        <button id="btnSafetyAutoReduce" class="btn btn-accent">Auto Reduce</button>
+      </div>
     </div>
   </div>
 

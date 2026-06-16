@@ -83,6 +83,7 @@ export const translations: Record<string, Record<string, string>> = {
 		band_type_peak: "Peak",
 		band_type_low: "Low Shelf",
 		band_type_high: "High Shelf",
+		band_type_notch: "Notch",
 		
 		// System console messages
 		log_connected: "[System] Connected",
@@ -174,6 +175,7 @@ export const translations: Record<string, Record<string, string>> = {
 		band_type_peak: "Pico",
 		band_type_low: "Low Shelf",
 		band_type_high: "High Shelf",
+		band_type_notch: "Muesca (Notch)",
 		
 		log_connected: "[Sistema] Conectado",
 		log_disconnected: "Desconectado.",
@@ -264,6 +266,7 @@ export const translations: Record<string, Record<string, string>> = {
 		band_type_peak: "Peak",
 		band_type_low: "Low Shelf",
 		band_type_high: "High Shelf",
+		band_type_notch: "Notch (Kerb)",
 		
 		log_connected: "[System] Verbunden",
 		log_disconnected: "Verbindung getrennt.",
@@ -354,6 +357,7 @@ export const translations: Record<string, Record<string, string>> = {
 		band_type_peak: "峰值 Peak",
 		band_type_low: "低架 Low Shelf",
 		band_type_high: "高架 High Shelf",
+		band_type_notch: "凹陷 Notch",
 		
 		log_connected: "[系统] 已连接",
 		log_disconnected: "断开连接。",

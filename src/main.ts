@@ -32,12 +32,14 @@ import {
 	getEqState,
 	renderUI,
 } from "./fn.ts";
-import { setGlobalGain, log } from "./helpers.ts";
+import { setGlobalGain, log, createRatingElement, createNotesElement } from "./helpers.ts";
 import { exportProfile, exportProfileAsText, importProfile } from "./importExport.ts";
 import {
 	getAutoEqPresets,
 	searchPresets,
 	loadPreset,
+	getHarmanScores,
+	getPresetHarmanScore,
 	type AutoEqPreset,
 } from "./autoeq.ts";
 import { KNOWN_DACS, activeDacs, setActiveDacs, type IdentifiedDac } from "./constants.ts";
@@ -117,28 +119,170 @@ btnResetFlat?.addEventListener("click", async () => {
 });
 
 /**
- * SYNC LOGIC
+ * SYNC LOGIC WITH SAFETY WARNINGS
  */
+let safetyActionPending: "sync" | "flash" | null = null;
+
+async function safeSyncToDevice() {
+	if ((window as any).isConfigurationUnsafe?.()) {
+		showSafetyModal("sync");
+	} else {
+		await syncToDevice();
+	}
+}
+
+async function safeFlashToFlash() {
+	if ((window as any).isConfigurationUnsafe?.()) {
+		showSafetyModal("flash");
+	} else {
+		await flashToFlash();
+	}
+}
+
+function showSafetyModal(action: "sync" | "flash") {
+	safetyActionPending = action;
+	
+	const modal = document.getElementById("modalSafetyWarning");
+	const reasonsList = document.getElementById("safetyWarningReasons");
+	if (!modal || !reasonsList) return;
+
+	reasonsList.innerHTML = "";
+
+	const globalGain = (window as any).getGlobalGainState?.() ?? 0;
+	if (globalGain > 0) {
+		const li = document.createElement("li");
+		li.innerText = `Pre-amp gain is positive (${globalGain.toFixed(1)} dB), which can cause digital clipping distortion.`;
+		reasonsList.appendChild(li);
+	}
+
+	const eqState = getEqState();
+	for (const band of eqState) {
+		if (band.enabled && band.gain > 10) {
+			const li = document.createElement("li");
+			li.innerText = `Band ${band.index + 1} gain is set to a high level (${band.gain.toFixed(1)} dB) at ${band.freq} Hz.`;
+			reasonsList.appendChild(li);
+		}
+	}
+
+	const peak = (window as any).calculateCombinedPeakGain?.() ?? 0;
+	if (peak > 12) {
+		const li = document.createElement("li");
+		li.innerText = `Combined EQ response peak is extremely high (${peak.toFixed(1)} dB), which could overdrive connected earphones.`;
+		reasonsList.appendChild(li);
+	}
+
+	let totalBoost = 0;
+	for (const band of eqState) {
+		if (band.enabled && band.gain > 0) {
+			totalBoost += band.gain;
+		}
+	}
+	if (totalBoost > 15) {
+		const li = document.createElement("li");
+		li.innerText = `Cumulative positive boost of active bands is very high (${totalBoost.toFixed(1)} dB), which could cause clipping or damage.`;
+		reasonsList.appendChild(li);
+	}
+
+	modal.classList.remove("hidden");
+}
+
+function closeSafetyModal() {
+	const modal = document.getElementById("modalSafetyWarning");
+	if (modal) modal.classList.add("hidden");
+	safetyActionPending = null;
+}
+
 const btnSync = document.getElementById("btnSync");
-btnSync?.addEventListener("click", async () => syncToDevice());
+btnSync?.addEventListener("click", async () => safeSyncToDevice());
 
 const btnSendToDevice = document.getElementById("btnSendToDevice");
 btnSendToDevice?.addEventListener("click", async () => {
 	log("[System] Force-sending entire EQ profile to device...");
-	await syncToDevice();
+	await safeSyncToDevice();
 });
 
 /**
- * FLASH WRITE LOGIC
+ * FLASH WRITE LOGIC WITH SAFETY WARNINGS
  */
 const btnFlash = document.getElementById("btnFlash");
-btnFlash?.addEventListener("click", async () => flashToFlash());
+btnFlash?.addEventListener("click", async () => safeFlashToFlash());
+
+// Safety warning modal button listeners
+const btnCloseSafetyModal = document.getElementById("btnCloseSafetyModal");
+const btnSafetyCancel = document.getElementById("btnSafetyCancel");
+const btnSafetyProceed = document.getElementById("btnSafetyProceed");
+const btnSafetyAutoReduce = document.getElementById("btnSafetyAutoReduce");
+
+btnCloseSafetyModal?.addEventListener("click", closeSafetyModal);
+btnSafetyCancel?.addEventListener("click", closeSafetyModal);
+
+btnSafetyProceed?.addEventListener("click", async () => {
+	const action = safetyActionPending;
+	closeSafetyModal();
+	if (action === "sync") {
+		await syncToDevice();
+	} else if (action === "flash") {
+		await flashToFlash();
+	}
+});
+
+btnSafetyAutoReduce?.addEventListener("click", async () => {
+	closeSafetyModal();
+	await (window as any).reduceGainsSafely?.();
+});
 
 /**
  * GLOBAL GAIN PREAMP LOGIC
  */
 const globalSlider = document.getElementById("globalGainSlider");
 globalSlider?.addEventListener("input", async (e) => setGlobalGain(e));
+
+// Auto Preamp Toggle Binding
+const checkAutoPreamp = document.getElementById("checkAutoPreamp") as HTMLInputElement;
+if (checkAutoPreamp) {
+	const autoPreampSaved = localStorage.getItem("aura_auto_preamp_enabled") === "true";
+	checkAutoPreamp.checked = autoPreampSaved;
+	setTimeout(() => {
+		(window as any).toggleAutoPreamp?.(autoPreampSaved);
+	}, 100);
+	checkAutoPreamp.addEventListener("change", async () => {
+		const enabled = checkAutoPreamp.checked;
+		localStorage.setItem("aura_auto_preamp_enabled", enabled ? "true" : "false");
+		await (window as any).toggleAutoPreamp?.(enabled);
+	});
+}
+
+// Tilt Sliders Binding
+const slideBassTilt = document.getElementById("slideBassTilt") as HTMLInputElement;
+const slideTrebleTilt = document.getElementById("slideTrebleTilt") as HTMLInputElement;
+const lblBassTilt = document.getElementById("lblBassTilt") as HTMLElement;
+const lblTrebleTilt = document.getElementById("lblTrebleTilt") as HTMLElement;
+const tiltTextValue = document.getElementById("tiltTextValue") as HTMLElement;
+
+if (slideBassTilt && slideTrebleTilt && lblBassTilt && lblTrebleTilt && tiltTextValue) {
+	const updateTiltUI = async () => {
+		const bass = parseFloat(slideBassTilt.value);
+		const treble = parseFloat(slideTrebleTilt.value);
+
+		(window as any).setBassTiltState(bass);
+		(window as any).setTrebleTiltState(treble);
+
+		lblBassTilt.innerText = `${bass >= 0 ? "+" : ""}${bass.toFixed(1)} dB`;
+		lblTrebleTilt.innerText = `${treble >= 0 ? "+" : ""}${treble.toFixed(1)} dB`;
+		tiltTextValue.innerText = `Bass: ${bass >= 0 ? "+" : ""}${bass.toFixed(1)} dB, Treble: ${treble >= 0 ? "+" : ""}${treble.toFixed(1)} dB`;
+
+		if ((window as any).getAutoPreampEnabled?.()) {
+			await (window as any).recalculateAutoPreamp?.();
+		}
+
+		renderUI(getEqState());
+
+		(window as any).queueRealtimeAllBandsWrite?.();
+	};
+
+	slideBassTilt.addEventListener("input", updateTiltUI);
+	slideTrebleTilt.addEventListener("input", updateTiltUI);
+}
 
 /**
  * PROFILE IMPORT / EXPORT LOGIC
@@ -192,6 +336,7 @@ customProfileNameInput?.addEventListener("keypress", (e: KeyboardEvent) => {
  * AUTOEQ ONLINE PRESETS INTEGRATION
  */
 let allPresets: AutoEqPreset[] = [];
+let harmanScores: Record<string, number> = {};
 let isFetchingIndex = false;
 
 const searchInput = document.getElementById("autoeqSearch") as HTMLInputElement;
@@ -210,6 +355,11 @@ async function initializeAutoEqIndex(forceRefresh = false) {
 
 	try {
 		allPresets = await getAutoEqPresets(forceRefresh);
+		try {
+			harmanScores = await getHarmanScores(forceRefresh);
+		} catch (e) {
+			console.error("Failed to load Harman preference scores", e);
+		}
 		updateDropdownUI("idle");
 	} catch (err) {
 		console.error("AutoEq initialization failed", err);
@@ -271,7 +421,16 @@ function renderSearchResults(query: string) {
 		
 		const nameText = document.createElement("span");
 		nameText.className = "search-item-name";
-		nameText.innerText = preset.name;
+		
+		// Look up Harman score
+		const score = getPresetHarmanScore(preset, harmanScores);
+		if (score !== null) {
+			const starsCount = Math.max(1, Math.min(5, Math.round(score / 20)));
+			const starsStr = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+			nameText.innerHTML = `${preset.name} <span class="harman-score-badge">⭐ Harman Score: ${score.toFixed(1)} [${starsStr}]</span>`;
+		} else {
+			nameText.innerHTML = `${preset.name} <span class="harman-score-badge na">Harman: N/A</span>`;
+		}
 		div.appendChild(nameText);
 
 		const starBtn = document.createElement("button");
@@ -283,6 +442,13 @@ function renderSearchResults(query: string) {
 			toggleFavorite(preset);
 		});
 		div.appendChild(starBtn);
+
+		// Add meta row for rating and notes
+		const metaDiv = document.createElement("div");
+		metaDiv.className = "item-meta-row";
+		metaDiv.appendChild(createRatingElement(preset.path));
+		metaDiv.appendChild(createNotesElement(preset.path));
+		div.appendChild(metaDiv);
 
 		div.addEventListener("click", async () => {
 			searchResults.classList.add("hidden");
@@ -557,7 +723,16 @@ function renderFavorites() {
 		
 		const nameSpan = document.createElement("span");
 		nameSpan.className = "favorite-name";
-		nameSpan.innerText = preset.name;
+		
+		const score = getPresetHarmanScore(preset, harmanScores);
+		if (score !== null) {
+			const starsCount = Math.max(1, Math.min(5, Math.round(score / 20)));
+			const starsStr = "★".repeat(starsCount) + "☆".repeat(5 - starsCount);
+			nameSpan.innerHTML = `${preset.name} <span class="harman-score-badge">⭐ Harman: ${score.toFixed(1)} [${starsStr}]</span>`;
+		} else {
+			nameSpan.innerHTML = `${preset.name} <span class="harman-score-badge na">Harman: N/A</span>`;
+		}
+		
 		nameSpan.title = preset.name;
 		nameSpan.addEventListener("click", async () => {
 			await loadPreset(preset);
@@ -572,8 +747,19 @@ function renderFavorites() {
 			toggleFavorite(preset);
 		});
 
-		div.appendChild(nameSpan);
-		div.appendChild(deleteBtn);
+		const topRow = document.createElement("div");
+		topRow.className = "favorite-top-row";
+		topRow.appendChild(nameSpan);
+		topRow.appendChild(deleteBtn);
+		div.appendChild(topRow);
+
+		// Add meta row for rating and notes
+		const metaDiv = document.createElement("div");
+		metaDiv.className = "item-meta-row";
+		metaDiv.appendChild(createRatingElement(preset.path));
+		metaDiv.appendChild(createNotesElement(preset.path));
+		div.appendChild(metaDiv);
+
 		favContainer.appendChild(div);
 	});
 }

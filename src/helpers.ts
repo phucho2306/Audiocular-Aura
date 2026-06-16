@@ -199,3 +199,52 @@ export function logRx(reportId: number, bytes: Uint8Array) {
 	log(`[RX] Report ID: 0x${reportId.toString(16).toUpperCase()} | Data: ${hex}`);
 }
 
+export function createRatingElement(key: string, onChange?: () => void): HTMLElement {
+	const container = document.createElement("div");
+	container.className = "item-rating-container";
+
+	const currentRating = parseInt(localStorage.getItem(`rating_${key}`) || "0", 10);
+
+	for (let i = 1; i <= 5; i++) {
+		const star = document.createElement("span");
+		star.className = `rating-star ${i <= currentRating ? "active" : ""}`;
+		star.innerHTML = i <= currentRating ? "★" : "☆";
+		star.dataset.index = i.toString();
+		star.addEventListener("click", (e) => {
+			e.stopPropagation();
+			localStorage.setItem(`rating_${key}`, i.toString());
+			const stars = container.querySelectorAll(".rating-star");
+			stars.forEach((s, idx) => {
+				if (idx < i) {
+					s.classList.add("active");
+					s.innerHTML = "★";
+				} else {
+					s.classList.remove("active");
+					s.innerHTML = "☆";
+				}
+			});
+			if (onChange) onChange();
+		});
+		container.appendChild(star);
+	}
+	return container;
+}
+
+export function createNotesElement(key: string): HTMLElement {
+	const container = document.createElement("div");
+	container.className = "item-notes-container";
+	container.addEventListener("click", (e) => e.stopPropagation());
+
+	const input = document.createElement("input");
+	input.type = "text";
+	input.className = "item-notes-input font-sans";
+	input.placeholder = "Add notes...";
+	input.value = localStorage.getItem(`notes_${key}`) || "";
+	input.addEventListener("change", () => {
+		localStorage.setItem(`notes_${key}`, input.value);
+	});
+	
+	container.appendChild(input);
+	return container;
+}
+
