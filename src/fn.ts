@@ -140,10 +140,39 @@ export function identifyConnectedDac(dev: HIDDevice) {
 	if (infoPid) infoPid.innerText = `0x${dev.productId.toString(16).toUpperCase().padStart(4, '0')}`;
 }
 
+export function loadManualPreampState() {
+	if (autoPreampEnabled) return;
+
+	const savedManualPreamp = localStorage.getItem("aura_active_manual_preamp");
+	if (savedManualPreamp !== null) {
+		manualPreampState = Number(savedManualPreamp);
+	} else if (device) {
+		const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
+		const savedDevicePreamp = localStorage.getItem(deviceKey);
+		if (savedDevicePreamp !== null) {
+			manualPreampState = Number(savedDevicePreamp);
+		} else {
+			manualPreampState = 0;
+		}
+	} else {
+		// Fallback to active preamp gain if manual has never been saved but active exists
+		const activeGain = localStorage.getItem("aura_active_preamp_gain");
+		if (activeGain !== null) {
+			manualPreampState = Number(activeGain);
+		} else {
+			manualPreampState = 0;
+		}
+	}
+
+	globalGainState = manualPreampState;
+	updateGlobalGainUI(globalGainState);
+}
+
 /**
  * INITIALIZATION
  */
 export function initState() {
+	loadManualPreampState();
 	renderUI(eqState);
 	resizeCanvas();
 	updateLastAppliedEqUI();
@@ -675,6 +704,7 @@ export async function connectToDevice() {
 		if (disconnectSection) disconnectSection.style.display = "flex";
 
 		enableControls(true);
+		loadManualPreampState();
 		configurePreampUI(globalGainState);
 
 		setupListener(device);
@@ -893,6 +923,7 @@ export async function autoConnectDevice() {
 		if (disconnectSection) disconnectSection.style.display = "flex";
 
 		enableControls(true);
+		loadManualPreampState();
 		configurePreampUI(globalGainState);
 		setupListener(dev);
 
@@ -1372,6 +1403,7 @@ export async function toggleAutoPreamp(enabled: boolean, skipWrite = false) {
 (window as any).recalculateAutoPreamp = recalculateAutoPreamp;
 (window as any).toggleAutoPreamp = toggleAutoPreamp;
 (window as any).setGlobalGainState = setGlobalGainState;
+(window as any).loadManualPreampState = loadManualPreampState;
 (window as any).getBassTiltState = getBassTiltState;
 (window as any).setBassTiltState = setBassTiltState;
 (window as any).getTrebleTiltState = getTrebleTiltState;
