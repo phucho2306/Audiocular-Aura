@@ -83,6 +83,7 @@ export function updateGlobalGainUI(val: number) {
  * @param newGlobalGainState The new global gain value
  */
 export async function updateGlobalGain(newGlobalGainState: number, skipWrite = false) {
+	console.log(`[Debug] updateGlobalGain: newGlobalGainState = ${newGlobalGainState}, skipWrite = ${skipWrite}`);
 	updateGlobalGainUI(newGlobalGainState);
 	
 	const dev = (window as any).device;

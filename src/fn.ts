@@ -141,30 +141,39 @@ export function identifyConnectedDac(dev: HIDDevice) {
 }
 
 export function loadManualPreampState() {
+	console.log(`[Debug] loadManualPreampState starting, autoPreampEnabled = ${autoPreampEnabled}, device =`, device ? `${device.vendorId}_${device.productId}` : "null");
 	if (autoPreampEnabled) return;
 
-	const savedManualPreamp = localStorage.getItem("aura_active_manual_preamp");
-	if (savedManualPreamp !== null) {
-		manualPreampState = Number(savedManualPreamp);
-	} else if (device) {
+	let loadedVal: number | null = null;
+
+	if (device) {
 		const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
 		const savedDevicePreamp = localStorage.getItem(deviceKey);
+		console.log(`[Debug] loadManualPreampState checking deviceKey = ${deviceKey}, savedDevicePreamp = ${savedDevicePreamp}`);
 		if (savedDevicePreamp !== null) {
-			manualPreampState = Number(savedDevicePreamp);
-		} else {
-			manualPreampState = 0;
-		}
-	} else {
-		// Fallback to active preamp gain if manual has never been saved but active exists
-		const activeGain = localStorage.getItem("aura_active_preamp_gain");
-		if (activeGain !== null) {
-			manualPreampState = Number(activeGain);
-		} else {
-			manualPreampState = 0;
+			loadedVal = Number(savedDevicePreamp);
 		}
 	}
 
+	if (loadedVal === null) {
+		const savedManualPreamp = localStorage.getItem("aura_active_manual_preamp");
+		console.log(`[Debug] loadManualPreampState checking savedManualPreamp = ${savedManualPreamp}`);
+		if (savedManualPreamp !== null) {
+			loadedVal = Number(savedManualPreamp);
+		}
+	}
+
+	if (loadedVal === null) {
+		const activeGain = localStorage.getItem("aura_active_preamp_gain");
+		console.log(`[Debug] loadManualPreampState checking activeGain = ${activeGain}`);
+		if (activeGain !== null) {
+			loadedVal = Number(activeGain);
+		}
+	}
+
+	manualPreampState = loadedVal !== null ? loadedVal : 0;
 	globalGainState = manualPreampState;
+	console.log(`[Debug] loadManualPreampState: set globalGainState = ${globalGainState}`);
 	updateGlobalGainUI(globalGainState);
 }
 
@@ -202,6 +211,7 @@ export function initState() {
  * @param gain The new gain value (in dB)
  */
 export function setGlobalGain(gain: number) {
+	console.log(`[Debug] setGlobalGain called with gain = ${gain}, autoPreampEnabled = ${autoPreampEnabled}, device =`, device ? `${device.vendorId}_${device.productId}` : "null");
 	globalGainState = gain;
 	if (!autoPreampEnabled) {
 		manualPreampState = gain;
@@ -464,6 +474,7 @@ export function getGlobalGainState() {
 }
 
 export function setGlobalGainState(gainState: number) {
+	console.log(`[Debug] setGlobalGainState called with gainState = ${gainState}, device =`, device ? `${device.vendorId}_${device.productId}` : "null");
 	globalGainState = gainState;
 	if (!autoPreampEnabled) {
 		manualPreampState = gainState;
