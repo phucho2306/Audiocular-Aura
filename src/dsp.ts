@@ -527,15 +527,15 @@ export function setupListener(device: HIDDevice) {
 					const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
 					let savedVal = localStorage.getItem(deviceKey);
 					console.log(`[Debug] setupListener fallback check: deviceKey = ${deviceKey}, savedVal = ${savedVal}`);
-					if (savedVal === null) {
+					if (savedVal === null || savedVal === "0") {
 						savedVal = localStorage.getItem("aura_active_manual_preamp");
 						console.log(`[Debug] setupListener fallback check: checking aura_active_manual_preamp = ${savedVal}`);
 					}
-					if (savedVal === null) {
+					if (savedVal === null || savedVal === "0") {
 						savedVal = localStorage.getItem("aura_active_preamp_gain");
 						console.log(`[Debug] setupListener fallback check: checking aura_active_preamp_gain = ${savedVal}`);
 					}
-					if (savedVal !== null) {
+					if (savedVal !== null && savedVal !== "0") {
 						gain = Number(savedVal);
 					} else {
 						gain = getManualPreampState() || getGlobalGainState() || 0;
