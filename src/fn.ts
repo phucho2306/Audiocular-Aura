@@ -728,6 +728,10 @@ export async function connectToDevice() {
 			log("Note: Parameter reading is only supported for Savitech, FiiO JA11, and Moondrop devices. Starting with a flat profile.");
 			renderUI(eqState);
 		}
+
+		if (autoPreampEnabled) {
+			await recalculateAutoPreamp(true);
+		}
 	} catch (err) {
 		log(`Connection Error: ${(err as Error).message}`);
 	}
@@ -943,6 +947,10 @@ export async function autoConnectDevice() {
 			await readDeviceParams(dev);
 		} else {
 			renderUI(eqState);
+		}
+
+		if (autoPreampEnabled) {
+			await recalculateAutoPreamp(true);
 		}
 	} catch (err) {
 		log(`[System] Auto-connect failed: ${(err as Error).message}`);

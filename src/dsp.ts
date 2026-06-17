@@ -19,6 +19,8 @@ import {
 	renderUI,
 	setGlobalGain,
 	getTiltGainAtFreq,
+	getAutoPreampEnabled,
+	getManualPreampState,
 } from "./fn.ts";
 import { delay, log, refreshStripUI, logTx, logRx } from "./helpers.ts";
 import type { Band } from "./main.ts";
@@ -320,16 +322,22 @@ export async function readDeviceParams(device: HIDDevice) {
 		try {
 			let { preamp, bands } = await readMoondropParams(device);
 			if (preamp === 0 && device) {
-				const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
-				let savedVal = localStorage.getItem(deviceKey);
-				if (savedVal === null) {
-					savedVal = localStorage.getItem("aura_active_manual_preamp");
-				}
-				if (savedVal === null) {
-					savedVal = localStorage.getItem("aura_active_preamp_gain");
-				}
-				if (savedVal !== null) {
-					preamp = Number(savedVal);
+				if (getAutoPreampEnabled()) {
+					preamp = getGlobalGainState();
+				} else {
+					const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
+					let savedVal = localStorage.getItem(deviceKey);
+					if (savedVal === null) {
+						savedVal = localStorage.getItem("aura_active_manual_preamp");
+					}
+					if (savedVal === null) {
+						savedVal = localStorage.getItem("aura_active_preamp_gain");
+					}
+					if (savedVal !== null) {
+						preamp = Number(savedVal);
+					} else {
+						preamp = getManualPreampState() || getGlobalGainState() || 0;
+					}
 				}
 			}
 			setGlobalGain(preamp);
@@ -451,16 +459,22 @@ export function setupListener(device: HIDDevice) {
 				const signed = raw > 32767 ? raw - 65536 : raw;
 				let gain = Number.parseFloat((signed / 2560).toFixed(1));
 				if (gain === 0 && device) {
-					const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
-					let savedVal = localStorage.getItem(deviceKey);
-					if (savedVal === null) {
-						savedVal = localStorage.getItem("aura_active_manual_preamp");
-					}
-					if (savedVal === null) {
-						savedVal = localStorage.getItem("aura_active_preamp_gain");
-					}
-					if (savedVal !== null) {
-						gain = Number(savedVal);
+					if (getAutoPreampEnabled()) {
+						gain = getGlobalGainState();
+					} else {
+						const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
+						let savedVal = localStorage.getItem(deviceKey);
+						if (savedVal === null) {
+							savedVal = localStorage.getItem("aura_active_manual_preamp");
+						}
+						if (savedVal === null) {
+							savedVal = localStorage.getItem("aura_active_preamp_gain");
+						}
+						if (savedVal !== null) {
+							gain = Number(savedVal);
+						} else {
+							gain = getManualPreampState() || getGlobalGainState() || 0;
+						}
 					}
 				}
 				setGlobalGain(gain);
@@ -507,19 +521,25 @@ export function setupListener(device: HIDDevice) {
 			let gain = new Int8Array([data[4]])[0];
 			console.log(`[Debug] setupListener CMD_SAVI.GAIN: raw gain byte = ${data[4]}, parsed gain = ${gain}`);
 			if (gain === 0 && device) {
-				const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
-				let savedVal = localStorage.getItem(deviceKey);
-				console.log(`[Debug] setupListener fallback check: deviceKey = ${deviceKey}, savedVal = ${savedVal}`);
-				if (savedVal === null) {
-					savedVal = localStorage.getItem("aura_active_manual_preamp");
-					console.log(`[Debug] setupListener fallback check: checking aura_active_manual_preamp = ${savedVal}`);
-				}
-				if (savedVal === null) {
-					savedVal = localStorage.getItem("aura_active_preamp_gain");
-					console.log(`[Debug] setupListener fallback check: checking aura_active_preamp_gain = ${savedVal}`);
-				}
-				if (savedVal !== null) {
-					gain = Number(savedVal);
+				if (getAutoPreampEnabled()) {
+					gain = getGlobalGainState();
+				} else {
+					const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
+					let savedVal = localStorage.getItem(deviceKey);
+					console.log(`[Debug] setupListener fallback check: deviceKey = ${deviceKey}, savedVal = ${savedVal}`);
+					if (savedVal === null) {
+						savedVal = localStorage.getItem("aura_active_manual_preamp");
+						console.log(`[Debug] setupListener fallback check: checking aura_active_manual_preamp = ${savedVal}`);
+					}
+					if (savedVal === null) {
+						savedVal = localStorage.getItem("aura_active_preamp_gain");
+						console.log(`[Debug] setupListener fallback check: checking aura_active_preamp_gain = ${savedVal}`);
+					}
+					if (savedVal !== null) {
+						gain = Number(savedVal);
+					} else {
+						gain = getManualPreampState() || getGlobalGainState() || 0;
+					}
 				}
 			}
 			setGlobalGain(gain);
