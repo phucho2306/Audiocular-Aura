@@ -61,7 +61,7 @@ export function getProtocol(device: HIDDevice) {
 	}
 
 	// 3. Fallback to vendor ID matching
-	if (device.vendorId === VID_COMTRUE) return "MOONDROP";
+	if (device.vendorId === VID_COMTRUE || device.vendorId === 0x35d8) return "MOONDROP";
 	if (device.vendorId === VID_FIIO) {
 		const prodName = (device.productName || "").toUpperCase();
 		if (device.productId === 258 || prodName.includes("JA11")) return "FIIO_JA11";
@@ -865,8 +865,8 @@ async function writeBandFiio(device: HIDDevice, band: Band, gain: number) {
 		band.index,
 		gainLow,
 		gainHigh,
-		freqLow,
 		freqHigh,
+		freqLow,
 		qLow,
 		qHigh,
 		typeMap[band.type as keyof typeof typeMap] || 0,

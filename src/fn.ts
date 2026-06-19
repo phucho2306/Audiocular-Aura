@@ -745,6 +745,9 @@ export async function disconnectDevice() {
 	try {
 		log(`Disconnecting from: ${device.productName || "DAC"}`);
 		await device.close();
+	} catch (err) {
+		log(`Disconnection Error: ${(err as Error).message}`);
+	} finally {
 		device = null;
 		(window as any).device = null;
 		
@@ -773,8 +776,6 @@ export async function disconnectDevice() {
 		configurePreampUI(globalGainState);
 		renderUI(eqState);
 		log("Disconnected.");
-	} catch (err) {
-		log(`Disconnection Error: ${(err as Error).message}`);
 	}
 }
 
@@ -907,7 +908,24 @@ export async function autoConnectDevice() {
 		const devices = await navigator.hid.getDevices();
 		if (devices.length === 0) return;
 
-		const dev = devices[0];
+		// Filter to only include devices that match one of our supported Vendor IDs or are in activeDacs
+		const allowedVids = new Set<number>([
+			VID_AUDIOCULAR,
+			VID_SAVITECH_OFFICIAL,
+			VID_SAVITECH,
+			VID_SAVITECH_ALT,
+			VID_COMTRUE,
+			VID_FIIO,
+			0x35d8, // Moondrop Dawn Pro 2
+		]);
+		
+		activeDacs.forEach(dac => {
+			allowedVids.add(dac.vid);
+		});
+
+		const dev = devices.find(d => allowedVids.has(d.vendorId));
+		if (!dev) return;
+
 		device = dev;
 		(window as any).device = dev;
 		await dev.open();
