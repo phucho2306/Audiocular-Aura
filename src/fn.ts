@@ -138,6 +138,17 @@ export function identifyConnectedDac(dev: HIDDevice) {
 	
 	const infoPid = document.getElementById("infoPid");
 	if (infoPid) infoPid.innerText = `0x${dev.productId.toString(16).toUpperCase().padStart(4, '0')}`;
+
+	// Show/hide FiiO EQ warning card based on detected protocol
+	const badgeWarning = document.getElementById("dacBadgeWarning");
+	if (badgeWarning) {
+		if (getProtocol(dev) === "FIIO") {
+			badgeWarning.classList.remove("hidden");
+			log(t("log_fiio_eq_warning"));
+		} else {
+			badgeWarning.classList.add("hidden");
+		}
+	}
 }
 
 export function loadManualPreampState() {
@@ -654,7 +665,9 @@ export async function connectToDevice() {
 			return;
 		}
 
-		const dev = devices[0];
+		const dev = devices.find(d => 
+			d.collections && d.collections.some(c => c.usagePage !== undefined && c.usagePage >= 0xff00 && c.usagePage <= 0xffff)
+		) || devices[0];
 		device = dev;
 		(window as any).device = dev;
 		await dev.open();
@@ -755,6 +768,9 @@ export async function disconnectDevice() {
 
 		const badgeContainer = document.getElementById("dacBadgeContainer");
 		if (badgeContainer) badgeContainer.classList.add("hidden");
+
+		const badgeWarning = document.getElementById("dacBadgeWarning");
+		if (badgeWarning) badgeWarning.classList.add("hidden");
 
 		const statusBadge = document.getElementById("statusBadge");
 		if (statusBadge) {
@@ -904,6 +920,7 @@ export async function updateState(
  */
 export async function autoConnectDevice() {
 	if (!navigator.hid) return;
+	if (device) return; // Prevent auto-connecting when already connected
 	try {
 		const devices = await navigator.hid.getDevices();
 		if (devices.length === 0) return;
@@ -923,7 +940,17 @@ export async function autoConnectDevice() {
 			allowedVids.add(dac.vid);
 		});
 
-		const dev = devices.find(d => allowedVids.has(d.vendorId));
+		// Prioritize device with vendor-defined collection (usage page 0xFF00-0xFFFF)
+		let dev = devices.find(d => 
+			allowedVids.has(d.vendorId) &&
+			d.collections && d.collections.some(c => c.usagePage !== undefined && c.usagePage >= 0xff00 && c.usagePage <= 0xffff)
+		);
+
+		// Fallback to finding by VID only
+		if (!dev) {
+			dev = devices.find(d => allowedVids.has(d.vendorId));
+		}
+
 		if (!dev) return;
 
 		device = dev;

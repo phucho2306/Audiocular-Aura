@@ -1528,6 +1528,18 @@ body.aura-app-theme {
   line-height: 1.35;
 }
 
+.dac-badge-warning {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #f87171;
+  line-height: 1.45;
+  animation: fadeIn 0.3s ease;
+}
+
 /* Search List Star styling */
 .search-item {
   display: flex;

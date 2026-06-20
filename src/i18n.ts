@@ -125,7 +125,9 @@ export const translations: Record<string, Record<string, string>> = {
 		log_defaults_applied: "Defaults applied and synced.",
 		log_flat_applied: "Flat neutral profile applied and synced.",
 		log_sync_complete: "Sync Complete.",
-		log_flash_write_success: "Flash Memory Write Successful."
+		log_flash_write_success: "Flash Memory Write Successful.",
+		fiio_eq_warning: "⚠️ Notice: Please make sure your FiiO DAC hardware EQ preset is set to a customizable \"User EQ\" slot (e.g. User 1-7) instead of \"Bypass EQ\" to prevent audio distortion.",
+		log_fiio_eq_warning: "[Warning] FiiO EQ Mode: Ensure hardware EQ is set to \"User EQ 1-7\" (not \"Bypass\") on your FiiO device to prevent audio distortion."
 	},
 	es: {
 		supported_dacs_list: "Lista de DACs compatibles 📋",
@@ -249,7 +251,9 @@ export const translations: Record<string, Record<string, string>> = {
 		log_defaults_applied: "Valores predeterminados aplicados y sincronizados.",
 		log_flat_applied: "Perfil plano neutral aplicado y sincronizado.",
 		log_sync_complete: "Sincronización completada.",
-		log_flash_write_success: "Escritura en memoria flash exitosa."
+		log_flash_write_success: "Escritura en memoria flash exitosa.",
+		fiio_eq_warning: "⚠️ Aviso: Asegúrese de que el ajuste preestablecido de EQ de hardware de su DAC FiiO esté configurado en una ranura \"User EQ\" personalizable (por ejemplo, User 1-7) en lugar de \"Bypass EQ\" para evitar la distorsión del audio.",
+		log_fiio_eq_warning: "[Advertencia] Modo EQ de FiiO: Asegúrese de que el ecualizador de hardware esté configurado en \"User EQ 1-7\" (no \"Bypass\") en su dispositivo FiiO para evitar la distorsión del audio."
 	},
 	de: {
 		supported_dacs_list: "Liste unterstützter DACs 📋",
@@ -373,7 +377,9 @@ export const translations: Record<string, Record<string, string>> = {
 		log_defaults_applied: "Standardwerte angewendet und synchronisiert.",
 		log_flat_applied: "Flaches neutrales Profil angewendet und synchronisiert.",
 		log_sync_complete: "Synchronisierung abgeschlossen.",
-		log_flash_write_success: "Erfolgreich in den Flash-Speicher geschrieben."
+		log_flash_write_success: "Erfolgreich in den Flash-Speicher geschrieben.",
+		fiio_eq_warning: "⚠️ Hinweis: Bitte stellen Sie sicher, dass das Hardware-EQ-Preset Ihres FiiO DACs auf einen anpassbaren \"User EQ\"-Slot (z. B. User 1-7) anstelle von \"Bypass EQ\" eingestellt ist, um Audioverzerrungen zu vermeiden.",
+		log_fiio_eq_warning: "[Warnung] FiiO-EQ-Modus: Stellen Sie sicher, dass der Hardware-EQ auf Ihrem FiiO-Gerät auf \"User EQ 1-7\" (nicht \"Bypass\") eingestellt ist, um Audioverzerrungen zu vermeiden."
 	},
 	zh: {
 		supported_dacs_list: "支持的 DAC 列表 📋",
@@ -497,7 +503,9 @@ export const translations: Record<string, Record<string, string>> = {
 		log_defaults_applied: "默认值已应用并同步。",
 		log_flat_applied: "平直中性配置已应用并同步。",
 		log_sync_complete: "同步完成。",
-		log_flash_write_success: "闪存写入成功。"
+		log_flash_write_success: "闪存写入成功。",
+		fiio_eq_warning: "⚠️ 注意：请确保您的飞傲 (FiiO) DAC 硬件均衡器预设已设置为可自定义的“User EQ”插槽 (例如 User 1-7)，而不是“Bypass EQ”旁路模式，以防止声音失真。",
+		log_fiio_eq_warning: "[警告] 飞傲 EQ 模式：请确保飞傲设备的硬件 EQ 设置为“User EQ 1-7” (而非“Bypass”)，以防止声音失真。"
 	}
 };
 
