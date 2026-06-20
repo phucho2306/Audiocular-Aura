@@ -122,7 +122,7 @@ export function identifyConnectedDac(dev: HIDDevice) {
 		if (reportUnknownContainer) reportUnknownContainer.classList.add("hidden");
 	} else {
 		if (reportUnknownContainer) reportUnknownContainer.classList.remove("hidden");
-		
+
 		// Fallback by Vendor ID alone
 		const fallbackMatch = activeDacs.find((d) => d.vid === dev.vendorId);
 		if (fallbackMatch) {
@@ -145,16 +145,16 @@ export function identifyConnectedDac(dev: HIDDevice) {
 	const isSavitech = dev.vendorId === VID_SAVITECH || dev.vendorId === VID_SAVITECH_ALT || dev.vendorId === VID_SAVITECH_OFFICIAL || dev.vendorId === VID_AUDIOCULAR;
 	const isFiio10Band = dev.vendorId === VID_FIIO && dev.productId !== 258;
 	const sampleRateStr = (isSavitech || isMoondrop || isJa11 || isFiio10Band) ? "96 kHz" : "48 kHz";
-	
+
 	const infoSampleRate = document.getElementById("infoSampleRate");
 	if (infoSampleRate) infoSampleRate.innerText = sampleRateStr;
-	
+
 	const infoFirmware = document.getElementById("infoFirmware");
 	if (infoFirmware) infoFirmware.innerText = "Active";
 
 	const infoVid = document.getElementById("infoVid");
 	if (infoVid) infoVid.innerText = `0x${dev.vendorId.toString(16).toUpperCase().padStart(4, '0')}`;
-	
+
 	const infoPid = document.getElementById("infoPid");
 	if (infoPid) infoPid.innerText = `0x${dev.productId.toString(16).toUpperCase().padStart(4, '0')}`;
 
@@ -218,7 +218,7 @@ export function initState() {
 	loadCustomProfilesFromStorage();
 	renderCustomProfiles();
 	configurePreampUI(globalGainState);
-	
+
 	// Pre-fill Custom USB options from localStorage
 	try {
 		const stored = localStorage.getItem("customUsbOverride");
@@ -316,7 +316,7 @@ export async function undo() {
 	setGlobalGain(previous.globalGainState);
 
 	renderUI(eqState);
-	
+
 	if (device) {
 		await syncToDevice();
 	}
@@ -682,7 +682,7 @@ export async function connectToDevice() {
 			VID_COMTRUE,
 			VID_FIIO
 		]);
-		
+
 		activeDacs.forEach(dac => {
 			vendorIds.add(dac.vid);
 		});
@@ -692,14 +692,14 @@ export async function connectToDevice() {
 		// Check for custom VID/PID overrides in the UI
 		const customVidEl = document.getElementById("customVid") as HTMLInputElement;
 		const customPidEl = document.getElementById("customPid") as HTMLInputElement;
-		
+
 		if (customVidEl && customVidEl.value.trim() !== "") {
 			const rawVid = customVidEl.value.trim();
 			const vid = parseInt(rawVid.startsWith("0x") ? rawVid : "0x" + rawVid, 16);
-			
+
 			if (!isNaN(vid)) {
 				const customFilter: any = { vendorId: vid };
-				
+
 				if (customPidEl && customPidEl.value.trim() !== "") {
 					const rawPid = customPidEl.value.trim();
 					const pid = parseInt(rawPid.startsWith("0x") ? rawPid : "0x" + rawPid, 16);
@@ -707,7 +707,7 @@ export async function connectToDevice() {
 						customFilter.productId = pid;
 					}
 				}
-				
+
 				// Place custom filter at the front
 				filters.unshift(customFilter);
 				log(`Attempting connection with custom filter: VID 0x${vid.toString(16).toUpperCase()}${customFilter.productId ? `, PID 0x${customFilter.productId.toString(16).toUpperCase()}` : ""}`);
@@ -718,13 +718,13 @@ export async function connectToDevice() {
 
 		log("Opening connection window. Please select your audio DAC...");
 		const devices = await navigator.hid.requestDevice({ filters });
-		
+
 		if (devices.length === 0) {
 			log("Connection cancelled: No device selected.");
 			return;
 		}
 
-		const dev = devices.find(d => 
+		const dev = devices.find(d =>
 			d.collections && d.collections.some(c => c.usagePage !== undefined && c.usagePage >= 0xff00 && c.usagePage <= 0xffff)
 		) || devices[0];
 		device = dev;
@@ -779,10 +779,10 @@ export async function connectToDevice() {
 			statusBadge.classList.remove("badge-offline");
 			statusBadge.classList.add("badge-online");
 		}
-		
+
 		const btnConnect = document.getElementById("btnConnect");
 		if (btnConnect) btnConnect.style.display = "none";
-		
+
 		const disconnectSection = document.getElementById("disconnectSection");
 		if (disconnectSection) disconnectSection.style.display = "flex";
 
@@ -829,7 +829,7 @@ export async function disconnectDevice() {
 	} finally {
 		device = null;
 		(window as any).device = null;
-		
+
 		adjustBandsForDevice(null);
 
 		const badgeContainer = document.getElementById("dacBadgeContainer");
@@ -844,10 +844,10 @@ export async function disconnectDevice() {
 			statusBadge.classList.remove("badge-online");
 			statusBadge.classList.add("badge-offline");
 		}
-		
+
 		const btnConnect = document.getElementById("btnConnect");
 		if (btnConnect) btnConnect.style.display = "inline-block";
-		
+
 		const disconnectSection = document.getElementById("disconnectSection");
 		if (disconnectSection) disconnectSection.style.display = "none";
 
@@ -885,7 +885,7 @@ export async function resetToDefaults() {
 	} else {
 		eqState = defaultEqState();
 	}
-	
+
 	const stripsContainer = document.getElementById("eqStrips");
 	if (stripsContainer) {
 		stripsContainer.innerHTML = "";
@@ -1014,13 +1014,13 @@ export async function autoConnectDevice() {
 			VID_FIIO,
 			0x35d8, // Moondrop Dawn Pro 2
 		]);
-		
+
 		activeDacs.forEach(dac => {
 			allowedVids.add(dac.vid);
 		});
 
 		// Prioritize device with vendor-defined collection (usage page 0xFF00-0xFFFF)
-		let dev = devices.find(d => 
+		let dev = devices.find(d =>
 			allowedVids.has(d.vendorId) &&
 			d.collections && d.collections.some(c => c.usagePage !== undefined && c.usagePage >= 0xff00 && c.usagePage <= 0xffff)
 		);
@@ -1044,7 +1044,7 @@ export async function autoConnectDevice() {
 		);
 		const unknownSuffix = isKnown ? "" : " [Unknown device]";
 		log(`[System] Connected: ${dev.productName || "Unknown DAC"} (VID: 0x${vidStr}, PID: 0x${pidStr})${unknownSuffix}`);
-		
+
 		adjustBandsForDevice(dev);
 		identifyConnectedDac(dev);
 
@@ -1415,7 +1415,7 @@ export function getMagnitudeAtFreq(freq: number): number {
 
 	for (const band of eqState) {
 		if (!band.enabled) continue;
-		
+
 		const w0 = (2 * Math.PI * band.freq) / sampleRate;
 		const alpha = Math.sin(w0) / (2 * band.q);
 		const A = 10 ** (band.gain / 40);
@@ -1513,7 +1513,7 @@ export async function recalculateAutoPreamp(skipWrite = false) {
 	if (peak > 0) {
 		targetPreamp = -peak;
 	}
-	
+
 	if (protocol === "SAVITECH") {
 		targetPreamp = Math.round(targetPreamp);
 	} else {
@@ -1613,7 +1613,7 @@ export async function reduceGainsSafely() {
 	if (changed) {
 		await updateGlobalGain(globalGainState);
 		renderUI(eqState);
-		
+
 		if (autoPreampEnabled) {
 			await recalculateAutoPreamp();
 		}
@@ -1631,7 +1631,7 @@ export async function reduceGainsSafely() {
 export function resetTiltState() {
 	bassTiltState = 0;
 	trebleTiltState = 0;
-	
+
 	const slideBassTilt = document.getElementById("slideBassTilt") as HTMLInputElement;
 	const slideTrebleTilt = document.getElementById("slideTrebleTilt") as HTMLInputElement;
 	const lblBassTilt = document.getElementById("lblBassTilt") as HTMLElement;

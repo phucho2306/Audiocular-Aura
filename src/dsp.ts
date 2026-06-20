@@ -49,7 +49,7 @@ export function getProtocol(device: HIDDevice) {
 			if (stored && stored.vid) {
 				const storedVid = parseInt(stored.vid.startsWith("0x") ? stored.vid : "0x" + stored.vid, 16);
 				const storedPid = stored.pid ? parseInt(stored.pid.startsWith("0x") ? stored.pid : "0x" + stored.pid, 16) : undefined;
-				
+
 				if (device.vendorId === storedVid && (storedPid === undefined || isNaN(storedPid) || device.productId === storedPid)) {
 					if (stored.protocol) {
 						return stored.protocol;
@@ -379,7 +379,7 @@ export async function readDeviceParams(device: HIDDevice) {
 			CMD_SAVI.END,
 		]);
 		await delay(50);
-		
+
 		// Read Gain
 		await sendPacketSavitech(device, [
 			CMD_SAVI.READ,
@@ -428,18 +428,18 @@ function updateBalanceState(channel: number, attenuation: number) {
 	} else if (channel === 1) {
 		balanceState.right = attenuation;
 	}
-	
+
 	let balance = 0;
 	if (balanceState.left > 0) {
 		balance = balanceState.left; // Right shift (left channel attenuated)
 	} else if (balanceState.right > 0) {
 		balance = -balanceState.right; // Left shift (right channel attenuated)
 	}
-	
+
 	const sliderBalance = document.getElementById("sliderBalance") as HTMLInputElement;
 	const balanceVal = document.getElementById("balanceVal") as HTMLElement;
 	if (sliderBalance) sliderBalance.value = balance.toString();
-	
+
 	if (balanceVal) {
 		if (balance === 0) {
 			balanceVal.setAttribute("data-i18n", "balance_center_val");
@@ -949,12 +949,12 @@ async function sendPacketSavitech(device: HIDDevice, bytes: number[]) {
 	if (bytes[0] === 128 || bytes[0] === 12 || (bytes[0] === 1 && bytes[1] === 9)) {
 		size = 36;
 	}
-	
+
 	const p = new Uint8Array(size);
 	for (let i = 0; i < bytes.length; i++) p[i] = bytes[i];
-	
+
 	logTx(REPORT_ID_DEFAULT, p);
-	
+
 	try {
 		await device.sendReport(REPORT_ID_DEFAULT, p);
 	} catch (err) {
@@ -967,7 +967,7 @@ async function sendPacketSavitech(device: HIDDevice, bytes: number[]) {
 		} catch (featErr) {
 			log(`[TX Debug] sendFeatureReport ID=${REPORT_ID_DEFAULT} failed: ${(featErr as Error).message}`);
 		}
-		
+
 		if ((err as Error).name === "NotAllowedError" || errMsg.includes("NotAllowedError")) {
 			try {
 				await device.sendReport(0, p);
@@ -1137,7 +1137,7 @@ export async function setDacFilter(device: HIDDevice, filterType: string) {
 		case "FAST-PC": r = 2; break;
 		case "Slow-LL": r = 3; break;
 		case "Slow-PC": r = 4; break;
-		case "NON-OS":  r = 5; break;
+		case "NON-OS": r = 5; break;
 		default: r = 1;
 	}
 	log(`Setting DAC Filter: ${filterType} (index ${r})`);
@@ -1163,7 +1163,7 @@ export async function setDacBalance(device: HIDDevice, balance: number) {
 	log(`Setting DAC Balance: ${balance}`);
 	const he = balance <= 0 ? Math.abs(balance) : 0;
 	const ne = balance > 0 ? balance : 0;
-	
+
 	if (he > 0) {
 		const n = -1 * he;
 		await sendPacketSavitech(device, [1, 22, 4, 1, 0, n, 0]);
@@ -1219,7 +1219,7 @@ export function queueRealtimeBandWrite(device: HIDDevice, band: Band) {
 
 	writeTimeoutId = setTimeout(async () => {
 		writeTimeoutId = null;
-		
+
 		const bandsToClear = Array.from(pendingBands.values());
 		pendingBands.clear();
 
