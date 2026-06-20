@@ -22,7 +22,7 @@ import {
 	getAutoPreampEnabled,
 	getManualPreampState,
 } from "./fn.ts";
-import { delay, log, refreshStripUI, logTx, logRx } from "./helpers.ts";
+import { delay, log, refreshStripUI, logTx, logRx, showSyncing, hideSyncing } from "./helpers.ts";
 import type { Band } from "./main.ts";
 import { t } from "./i18n.ts";
 
@@ -300,110 +300,115 @@ async function readMoondropParams(device: HIDDevice): Promise<{ preamp: number; 
  */
 export async function readDeviceParams(device: HIDDevice) {
 	if (!device) return;
-	const protocol = getProtocol(device);
-	if (protocol === "FIIO_JA11") {
-		log("Reading FiiO JA11 configuration...");
-		// Request global gain
-		const gainPacket = new Uint8Array([0xbb, 0x0b, 0, 0, 23, 0, 0, 0xee]);
-		logTx(2, gainPacket);
-		await device.sendReport(2, gainPacket);
-		await delay(200);
+	showSyncing();
+	try {
+		const protocol = getProtocol(device);
+		if (protocol === "FIIO_JA11") {
+			log("Reading FiiO JA11 configuration...");
+			// Request global gain
+			const gainPacket = new Uint8Array([0xbb, 0x0b, 0, 0, 23, 0, 0, 0xee]);
+			logTx(2, gainPacket);
+			await device.sendReport(2, gainPacket);
+			await delay(200);
 
-		// Request 5 bands
-		for (let i = 0; i < 5; i++) {
-			const bandPacket = new Uint8Array([0xbb, 0x0b, 0, 0, 21, 1, i, 0xee]);
-			logTx(2, bandPacket);
-			await device.sendReport(2, bandPacket);
-			await delay(150);
-		}
-		log("Configuration loaded.");
-		return;
-	} else if (protocol === "MOONDROP") {
-		try {
-			let { preamp, bands } = await readMoondropParams(device);
-			if (preamp === 0 && device) {
-				if (getAutoPreampEnabled()) {
-					preamp = getGlobalGainState();
-				} else {
-					const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
-					let savedVal = localStorage.getItem(deviceKey);
-					if (savedVal === null) {
-						savedVal = localStorage.getItem("aura_active_manual_preamp");
-					}
-					if (savedVal === null) {
-						savedVal = localStorage.getItem("aura_active_preamp_gain");
-					}
-					if (savedVal !== null) {
-						preamp = Number(savedVal);
+			// Request 5 bands
+			for (let i = 0; i < 5; i++) {
+				const bandPacket = new Uint8Array([0xbb, 0x0b, 0, 0, 21, 1, i, 0xee]);
+				logTx(2, bandPacket);
+				await device.sendReport(2, bandPacket);
+				await delay(150);
+			}
+			log("Configuration loaded.");
+			return;
+		} else if (protocol === "MOONDROP") {
+			try {
+				let { preamp, bands } = await readMoondropParams(device);
+				if (preamp === 0 && device) {
+					if (getAutoPreampEnabled()) {
+						preamp = getGlobalGainState();
 					} else {
-						preamp = getManualPreampState() || getGlobalGainState() || 0;
+						const deviceKey = `last_preamp_gain_${device.vendorId}_${device.productId}`;
+						let savedVal = localStorage.getItem(deviceKey);
+						if (savedVal === null) {
+							savedVal = localStorage.getItem("aura_active_manual_preamp");
+						}
+						if (savedVal === null) {
+							savedVal = localStorage.getItem("aura_active_preamp_gain");
+						}
+						if (savedVal !== null) {
+							preamp = Number(savedVal);
+						} else {
+							preamp = getManualPreampState() || getGlobalGainState() || 0;
+						}
 					}
 				}
+				setGlobalGain(preamp);
+				setEqState(bands);
+				renderUI(bands);
+				log("Moondrop configuration loaded successfully.");
+			} catch (err) {
+				log(`[System] Warning: Could not read current EQ from device: ${(err as Error).message}. Showing flat profile.`);
+				const flatEq = defaultEqState();
+				setEqState(flatEq);
+				setGlobalGain(0);
+				renderUI(flatEq);
 			}
-			setGlobalGain(preamp);
-			setEqState(bands);
-			renderUI(bands);
-			log("Moondrop configuration loaded successfully.");
-		} catch (err) {
-			log(`[System] Warning: Could not read current EQ from device: ${(err as Error).message}. Showing flat profile.`);
-			const flatEq = defaultEqState();
-			setEqState(flatEq);
-			setGlobalGain(0);
-			renderUI(flatEq);
+			return;
 		}
-		return;
-	}
 
-	log("Reading device configuration...");
+		log("Reading device configuration...");
 
-	// Read Version (Query and Ack Query sequence)
-	await sendPacketSavitech(device, [
-		CMD_SAVI.READ,
-		CMD_SAVI.VERSION,
-		CMD_SAVI.END,
-	]);
-	await delay(20);
-	await sendPacketSavitech(device, [
-		CMD_SAVI.VERSION,
-		CMD_SAVI.END,
-	]);
-	await delay(50);
-	
-	// Read Gain
-	await sendPacketSavitech(device, [
-		CMD_SAVI.READ,
-		CMD_SAVI.GAIN,
-		CMD_SAVI.END,
-	]);
-	await delay(50);
-
-	// Read Advanced settings (Filter, Work Mode, Gain Mode, Mic Volume, Balance)
-	await sendPacketSavitech(device, [CMD_SAVI.READ, 17, CMD_SAVI.END]);
-	await delay(30);
-	await sendPacketSavitech(device, [CMD_SAVI.READ, 29, CMD_SAVI.END]);
-	await delay(30);
-	await sendPacketSavitech(device, [CMD_SAVI.READ, 25, CMD_SAVI.END]);
-	await delay(30);
-	await sendPacketSavitech(device, [CMD_SAVI.READ, 2, CMD_SAVI.END]);
-	await delay(30);
-	await sendPacketSavitech(device, [CMD_SAVI.READ, 22, 1, 0]); // channel 0
-	await delay(30);
-	await sendPacketSavitech(device, [CMD_SAVI.READ, 22, 1, 1]); // channel 1
-	await delay(30);
-
-	// Request all 10 bands
-	for (let i = 0; i < NUM_BANDS; i++) {
+		// Read Version (Query and Ack Query sequence)
 		await sendPacketSavitech(device, [
 			CMD_SAVI.READ,
-			CMD_SAVI.PEQ,
-			0x00,
-			0x00,
-			i,
+			CMD_SAVI.VERSION,
 			CMD_SAVI.END,
 		]);
-		await delay(40);
+		await delay(20);
+		await sendPacketSavitech(device, [
+			CMD_SAVI.VERSION,
+			CMD_SAVI.END,
+		]);
+		await delay(50);
+		
+		// Read Gain
+		await sendPacketSavitech(device, [
+			CMD_SAVI.READ,
+			CMD_SAVI.GAIN,
+			CMD_SAVI.END,
+		]);
+		await delay(50);
+
+		// Read Advanced settings (Filter, Work Mode, Gain Mode, Mic Volume, Balance)
+		await sendPacketSavitech(device, [CMD_SAVI.READ, 17, CMD_SAVI.END]);
+		await delay(30);
+		await sendPacketSavitech(device, [CMD_SAVI.READ, 29, CMD_SAVI.END]);
+		await delay(30);
+		await sendPacketSavitech(device, [CMD_SAVI.READ, 25, CMD_SAVI.END]);
+		await delay(30);
+		await sendPacketSavitech(device, [CMD_SAVI.READ, 2, CMD_SAVI.END]);
+		await delay(30);
+		await sendPacketSavitech(device, [CMD_SAVI.READ, 22, 1, 0]); // channel 0
+		await delay(30);
+		await sendPacketSavitech(device, [CMD_SAVI.READ, 22, 1, 1]); // channel 1
+		await delay(30);
+
+		// Request all 10 bands
+		for (let i = 0; i < NUM_BANDS; i++) {
+			await sendPacketSavitech(device, [
+				CMD_SAVI.READ,
+				CMD_SAVI.PEQ,
+				0x00,
+				0x00,
+				i,
+				CMD_SAVI.END,
+			]);
+			await delay(40);
+		}
+		log("Configuration loaded.");
+	} finally {
+		hideSyncing();
 	}
-	log("Configuration loaded.");
 }
 
 const balanceState = { left: 0, right: 0 };
@@ -650,29 +655,34 @@ export async function syncToDevice() {
 	const eqState = getEqState();
 	if (!device || !eqState) return;
 
-	const protocol = getProtocol(device);
-	log(`Syncing via protocol: ${protocol}...`);
+	showSyncing();
+	try {
+		const protocol = getProtocol(device);
+		log(`Syncing via protocol: ${protocol}...`);
 
-	// 1. Write Global Preamp Gain (skip band sync since we write them below)
-	await setDeviceGlobalGain(getGlobalGainState(), true);
+		// 1. Write Global Preamp Gain (skip band sync since we write them below)
+		await setDeviceGlobalGain(getGlobalGainState(), true);
 
-	// 2. Write all bands
-	for (const band of eqState) {
-		await writeBand(device, band, protocol);
-		await delay(30);
+		// 2. Write all bands
+		for (const band of eqState) {
+			await writeBand(device, band, protocol);
+			await delay(30);
+		}
+
+		// 3. Commit / Temp Save
+		if (protocol === "SAVITECH") {
+			await sendPacketSavitech(device, [1, 10, 4, 0, 0, 255, 255]);
+			await refreshToFlash(device);
+		} else if (protocol === "FIIO_JA11") {
+			const packet = new Uint8Array([0xaa, 0x0a, 0, 0, 24, 1, 1, 0, 0xee]);
+			logTx(2, packet);
+			await device.sendReport(2, packet);
+		}
+
+		log("Sync Complete.");
+	} finally {
+		hideSyncing();
 	}
-
-	// 3. Commit / Temp Save
-	if (protocol === "SAVITECH") {
-		await sendPacketSavitech(device, [1, 10, 4, 0, 0, 255, 255]);
-		await refreshToFlash(device);
-	} else if (protocol === "FIIO_JA11") {
-		const packet = new Uint8Array([0xaa, 0x0a, 0, 0, 24, 1, 1, 0, 0xee]);
-		logTx(2, packet);
-		await device.sendReport(2, packet);
-	}
-
-	log("Sync Complete.");
 }
 
 /**
@@ -683,43 +693,48 @@ export async function flashToFlash() {
 	if (!device) return;
 	if (!confirm("Save to permanent memory? The settings will load automatically when you power on the DAC.")) return;
 
-	const protocol = getProtocol(device);
+	showSyncing();
+	try {
+		const protocol = getProtocol(device);
 
-	if (protocol === "FIIO") {
-		const packet = new Uint8Array(64);
-		packet.set([
-			CMD_FIIO.HEADER_SET_1,
-			CMD_FIIO.HEADER_SET_2,
-			0,
-			0,
-			CMD_FIIO.SAVE,
-			1,
-			1,
-			0,
-			CMD_FIIO.END,
-		]);
-		await device.sendReport(REPORT_ID_FIIO, packet);
-	} else if (protocol === "FIIO_JA11") {
-		const packet = new Uint8Array([0xaa, 0x0a, 0, 0, 25, 1, 3, 0, 0xee]);
-		logTx(2, packet);
-		await device.sendReport(2, packet);
-	} else if (protocol === "MOONDROP") {
-		const packet = new Uint8Array(64);
-		packet[0] = CMD_MOON.WRITE;
-		packet[1] = CMD_MOON.SAVE_FLASH;
-		await device.sendReport(0, packet);
-	} else {
-		// Savitech Flash Save
-		await sendPacketSavitech(device, [
-			CMD_SAVI.WRITE,
-			CMD_SAVI.FLASH,
-			0x01,
-			0x00,
-			CMD_SAVI.END,
-		]);
+		if (protocol === "FIIO") {
+			const packet = new Uint8Array(64);
+			packet.set([
+				CMD_FIIO.HEADER_SET_1,
+				CMD_FIIO.HEADER_SET_2,
+				0,
+				0,
+				CMD_FIIO.SAVE,
+				1,
+				1,
+				0,
+				CMD_FIIO.END,
+			]);
+			await device.sendReport(REPORT_ID_FIIO, packet);
+		} else if (protocol === "FIIO_JA11") {
+			const packet = new Uint8Array([0xaa, 0x0a, 0, 0, 25, 1, 3, 0, 0xee]);
+			logTx(2, packet);
+			await device.sendReport(2, packet);
+		} else if (protocol === "MOONDROP") {
+			const packet = new Uint8Array(64);
+			packet[0] = CMD_MOON.WRITE;
+			packet[1] = CMD_MOON.SAVE_FLASH;
+			await device.sendReport(0, packet);
+		} else {
+			// Savitech Flash Save
+			await sendPacketSavitech(device, [
+				CMD_SAVI.WRITE,
+				CMD_SAVI.FLASH,
+				0x01,
+				0x00,
+				CMD_SAVI.END,
+			]);
+		}
+
+		log("Saved permanently to Flash.");
+	} finally {
+		hideSyncing();
 	}
-
-	log("Saved permanently to Flash.");
 }
 
 /**
@@ -1186,38 +1201,48 @@ export function queueRealtimeBandWrite(device: HIDDevice, band: Band) {
 		pendingBands.clear();
 
 		if (!device) return;
-		const protocol = getProtocol(device);
+		showSyncing();
+		try {
+			const protocol = getProtocol(device);
 
-		// Write all pending bands
-		for (const b of bandsToClear) {
-			await writeBand(device, b, protocol);
-			await delay(25);
-		}
+			// Write all pending bands
+			for (const b of bandsToClear) {
+				await writeBand(device, b, protocol);
+				await delay(25);
+			}
 
-		// Commit / Apply changes for Savitech or FiiO JA11
-		if (protocol === "SAVITECH") {
-			try {
-				await sendPacketSavitech(device, [1, 10, 4, 0, 0, 255, 255]);
-				// Call refresh to flash to apply registers
-				await refreshToFlash(device);
-			} catch (e) {
-				log(`Savitech Realtime Commit Error: ${(e as Error).message}`);
+			// Commit / Apply changes for Savitech or FiiO JA11
+			if (protocol === "SAVITECH") {
+				try {
+					await sendPacketSavitech(device, [1, 10, 4, 0, 0, 255, 255]);
+					// Call refresh to flash to apply registers
+					await refreshToFlash(device);
+				} catch (e) {
+					log(`Savitech Realtime Commit Error: ${(e as Error).message}`);
+				}
+			} else if (protocol === "FIIO_JA11") {
+				try {
+					const packet = new Uint8Array([0xaa, 0x0a, 0, 0, 24, 1, 1, 0, 0xee]);
+					logTx(2, packet);
+					await device.sendReport(2, packet);
+				} catch (e) {
+					log(`FiiO JA11 Realtime Commit Error: ${(e as Error).message}`);
+				}
 			}
-		} else if (protocol === "FIIO_JA11") {
-			try {
-				const packet = new Uint8Array([0xaa, 0x0a, 0, 0, 24, 1, 1, 0, 0xee]);
-				logTx(2, packet);
-				await device.sendReport(2, packet);
-			} catch (e) {
-				log(`FiiO JA11 Realtime Commit Error: ${(e as Error).message}`);
-			}
+		} finally {
+			hideSyncing();
 		}
 	}, 50); // 50ms batching window
 }
 
 export async function executeFactoryReset(device: HIDDevice) {
 	log("Executing Factory Reset...");
-	await sendPacketSavitech(device, [1, 23, 0]);
-	await delay(100);
-	await refreshToFlash(device);
+	showSyncing();
+	try {
+		await sendPacketSavitech(device, [1, 23, 0]);
+		await delay(100);
+		await refreshToFlash(device);
+	} finally {
+		hideSyncing();
+	}
 }

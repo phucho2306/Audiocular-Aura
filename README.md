@@ -23,9 +23,9 @@ When you save your custom EQ settings, they are written permanently to the DAC's
 *   🛡️ **Ear Protection Alerts**: Automated warning prompts for unsafe volume/gain sync thresholds with a one-click real-time correction engine.
 *   📉 **Global Bass/Treble Tilt**: Layered low-shelf and high-shelf global tilt sliders with active dashed indicators convolved mathematically on top of the physical bands.
 *   📐 **Auto Preamp Headroom**: Real-time combined EQ curve analysis to dynamically apply clipping prevention headroom depending on device protocol precision.
-*   ⭐ **Harman Preference Scores**: On-demand rankings index lookup from the official AutoEq index database with stars indicator.
+*   ⭐ **Harman Preference Scores**: On-demand rankings index lookup from the official AutoEq index database with stars indicator (with race-condition protection to ensure accurate scores on load).
 *   📝 **Preset Ratings & Notes**: Apply star ratings and persist customized notes to presets and custom profiles locally.
-*   ⚡ **Instant Real-Time Sync**: Smooth visualizer edits (Gain, Freq, Q) are throttled and pushed instantly to the device.
+*   ⚡ **Instant Real-Time Sync**: Smooth visualizer edits (Gain, Freq, Q) are throttled and pushed instantly to the device, with a real-time rotating sync indicator showing connection status.
 *   🔄 **EQ A/B Comparison**: Swap between slot configurations to easily compare presets.
 *   ↩️ **Undo/Redo History**: Debounced state-based history traversal (up to 50 snapshots depth) with hardware sync.
 *   🌐 **Translation System (i18n)**: Fully localized UI in English, Spanish, German, and Simplified Chinese.

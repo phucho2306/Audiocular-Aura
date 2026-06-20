@@ -388,6 +388,16 @@ async function initializeAutoEqIndex(forceRefresh = false) {
 	}
 }
 
+async function ensureAutoEqIndexLoaded() {
+	if (isFetchingIndex) {
+		while (isFetchingIndex) {
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+	} else if (allPresets.length === 0 || Object.keys(harmanScores).length === 0) {
+		await initializeAutoEqIndex();
+	}
+}
+
 function updateDropdownUI(state: "loading" | "idle" | "error") {
 	if (!searchResults) return;
 	
@@ -472,6 +482,7 @@ function renderSearchResults(query: string) {
 		div.addEventListener("click", async () => {
 			searchResults.classList.add("hidden");
 			searchInput.value = preset.name;
+			await ensureAutoEqIndexLoaded();
 			await loadPreset(preset);
 		});
 		searchResults.appendChild(div);
@@ -752,6 +763,7 @@ function renderFavorites() {
 		
 		nameSpan.title = preset.name;
 		nameSpan.addEventListener("click", async () => {
+			await ensureAutoEqIndexLoaded();
 			await loadPreset(preset);
 		});
 

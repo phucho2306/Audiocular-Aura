@@ -261,3 +261,19 @@ export function createNotesElement(key: string): HTMLElement {
 	return container;
 }
 
+let activeSyncsCount = 0;
+
+export function showSyncing() {
+	activeSyncsCount++;
+	const ind = document.getElementById("syncingIndicator");
+	if (ind) ind.classList.remove("hidden");
+}
+
+export function hideSyncing() {
+	activeSyncsCount = Math.max(0, activeSyncsCount - 1);
+	if (activeSyncsCount === 0) {
+		const ind = document.getElementById("syncingIndicator");
+		if (ind) ind.classList.add("hidden");
+	}
+}
+

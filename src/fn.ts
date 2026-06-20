@@ -531,7 +531,7 @@ export function renderUI(eqState: EQ) {
 	}
 
 	// Update PEQ slots count
-	const activeSlots = eqState.filter(b => b.enabled && b.gain !== 0).length;
+	const activeSlots = eqState.filter(b => b.enabled && Math.abs(Number(b.gain)) > 0.001).length;
 	const infoSlots = document.getElementById("infoSlots");
 	if (infoSlots) infoSlots.innerText = `${activeSlots} / ${eqState.length}`;
 
