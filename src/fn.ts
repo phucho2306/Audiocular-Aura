@@ -51,6 +51,18 @@ export function isCompareActive(): boolean {
 	return slotA !== null && slotB !== null;
 }
 
+export function getSlotAGain(): number {
+	return slotA ? slotA.globalGainState : 0;
+}
+
+export function getSlotBGain(): number {
+	return slotB ? slotB.globalGainState : 0;
+}
+
+(window as any).isCompareActive = isCompareActive;
+(window as any).getSlotAGain = getSlotAGain;
+(window as any).getSlotBGain = getSlotBGain;
+
 export function getComparedEqState(): EQ | null {
 	if (!slotA || !slotB) return null;
 	return activeSlot === "A" ? slotB.eqState : slotA.eqState;
@@ -353,8 +365,9 @@ export async function toggleABCompare() {
 		globalGainState: globalGainState
 	};
 
-	// Lazy initialization on first compare toggle: A = current, B = flat
+	// 3-state cycle: Off -> B -> A -> Off
 	if (!slotA && !slotB) {
+		// Off -> Slot B active
 		slotA = {
 			eqState: JSON.parse(JSON.stringify(current.eqState)) as EQ,
 			globalGainState: current.globalGainState,
@@ -370,29 +383,24 @@ export async function toggleABCompare() {
 		eqState = JSON.parse(JSON.stringify(slotB.eqState)) as EQ;
 		globalGainState = slotB.globalGainState;
 		lastAppliedEqName = slotB.eqName;
+	} else if (activeSlot === "B") {
+		// Slot B active -> Slot A active
+		slotB = {
+			eqState: current.eqState,
+			globalGainState: current.globalGainState,
+			eqName: lastAppliedEqName
+		};
+		activeSlot = "A";
+		
+		eqState = JSON.parse(JSON.stringify(slotA!.eqState)) as EQ;
+		globalGainState = slotA!.globalGainState;
+		lastAppliedEqName = slotA!.eqName;
 	} else {
-		// Save current state before toggle
-		if (activeSlot === "A") {
-			slotA = {
-				eqState: current.eqState,
-				globalGainState: current.globalGainState,
-				eqName: lastAppliedEqName
-			};
-			activeSlot = "B";
-			eqState = JSON.parse(JSON.stringify(slotB!.eqState)) as EQ;
-			globalGainState = slotB!.globalGainState;
-			lastAppliedEqName = slotB!.eqName;
-		} else {
-			slotB = {
-				eqState: current.eqState,
-				globalGainState: current.globalGainState,
-				eqName: lastAppliedEqName
-			};
-			activeSlot = "A";
-			eqState = JSON.parse(JSON.stringify(slotA!.eqState)) as EQ;
-			globalGainState = slotA!.globalGainState;
-			lastAppliedEqName = slotA!.eqName;
-		}
+		// Slot A active -> Off
+		slotA = null;
+		slotB = null;
+		activeSlot = "A";
+		// eqState and globalGainState remain at Slot A's current values
 	}
 
 	renderUI(eqState);
@@ -407,11 +415,15 @@ export async function toggleABCompare() {
 function updateSlotLabel() {
 	const abStateLabel = document.getElementById("abStateLabel");
 	if (abStateLabel) {
-		abStateLabel.innerText = activeSlot;
+		if (slotA && slotB) {
+			abStateLabel.innerText = activeSlot;
+		} else {
+			abStateLabel.innerText = "Off";
+		}
 	}
 	const btnABCompare = document.getElementById("btnABCompare");
 	if (btnABCompare) {
-		if (activeSlot === "B") {
+		if (slotA && slotB) {
 			btnABCompare.classList.add("active");
 		} else {
 			btnABCompare.classList.remove("active");

@@ -147,17 +147,25 @@ export async function setDeviceGlobalGain(gain: number, skipBandSync = false) {
 	const device = getDevice();
 	if (!device) return;
 
+	// Level matching for A/B Comparison to prevent volume jumps
+	let appliedGain = gain;
+	if (typeof (window as any).isCompareActive === "function" && (window as any).isCompareActive()) {
+		const gA = (window as any).getSlotAGain?.() ?? 0;
+		const gB = (window as any).getSlotBGain?.() ?? 0;
+		appliedGain = Math.min(gA, gB);
+	}
+
 	const protocol = getProtocol(device);
 
 	if (protocol === "FIIO") {
-		await setGlobalGainFiio(device, gain);
+		await setGlobalGainFiio(device, appliedGain);
 	} else if (protocol === "FIIO_JA11") {
-		await setMasterGainJa11(device, gain);
+		await setMasterGainJa11(device, appliedGain);
 	} else if (protocol === "MOONDROP") {
-		await setGlobalGainMoondrop(device, gain);
+		await setGlobalGainMoondrop(device, appliedGain);
 	} else {
 		// Savitech Default
-		const gVal = gain < 0 ? 256 + Math.round(gain) : Math.round(gain);
+		const gVal = appliedGain < 0 ? 256 + Math.round(appliedGain) : Math.round(appliedGain);
 		await sendPacketSavitech(device, [
 			CMD_SAVI.WRITE,
 			CMD_SAVI.GAIN,
