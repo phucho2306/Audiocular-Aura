@@ -680,6 +680,12 @@ export async function syncToDevice() {
 		}
 
 		log("Sync Complete.");
+
+		// Save current profile name to device-specific key in localStorage
+		const currentName = localStorage.getItem("last_applied_eq");
+		if (currentName) {
+			localStorage.setItem(`last_applied_eq_${device.vendorId}_${device.productId}`, currentName);
+		}
 	} finally {
 		hideSyncing();
 	}
@@ -732,6 +738,12 @@ export async function flashToFlash() {
 		}
 
 		log("Saved permanently to Flash.");
+
+		// Save current profile name to device-specific key in localStorage
+		const currentName = localStorage.getItem("last_applied_eq");
+		if (currentName) {
+			localStorage.setItem(`last_applied_eq_${device.vendorId}_${device.productId}`, currentName);
+		}
 	} finally {
 		hideSyncing();
 	}

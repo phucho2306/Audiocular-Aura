@@ -17,6 +17,7 @@ const CONFIG = {
 let localBands: Band[] = [];
 let selectedIndex: number | null = null;
 let draggingIndex: number | null = null;
+let hoveredIndex: number | null = null;
 let onUpdateCallback:
 	| ((index: number, key: string, value: number | string | boolean) => void)
 	| null = null;
@@ -274,7 +275,30 @@ function drawCurve(c: CanvasRenderingContext2D, width: number, height: number) {
 		);
 	}
 
-	// 2. Draw combined curve (with active EQ + virtual tilt filters)
+	// 2. Draw compared curve if A/B comparison is active
+	const comparedBands = (window as any).getComparedEqState?.() as Band[] | null;
+	if (comparedBands) {
+		const comparedCoeffs = comparedBands.map((b) => calculateBiquad(b));
+		c.beginPath();
+		c.strokeStyle = "rgba(255, 255, 255, 0.22)"; // Faint, semi-transparent white/grey
+		c.lineWidth = 2.0;
+		c.setLineDash([5, 5]); // Dashed line
+		
+		for (let i = 0; i <= endX - startX; i++) {
+			const x = startX + i;
+			const freq = xToFreq(x, width);
+			const tiltGain = (window as any).getTiltGainAtFreq?.(freq) || 0;
+			const totalGain = getMagnitude(freq, comparedCoeffs) + tiltGain;
+			const y = gainToY(totalGain, height);
+			
+			if (i === 0) c.moveTo(x, y);
+			else c.lineTo(x, y);
+		}
+		c.stroke();
+		c.setLineDash([]); // Reset dashed state
+	}
+
+	// 3. Draw combined curve (with active EQ + virtual tilt filters)
 	c.beginPath();
 	
 	// Create a beautiful glowing gradient for the EQ curve
@@ -352,6 +376,108 @@ function drawHandles(
 }
 
 /**
+ * Draw a rounded rectangle on canvas
+ */
+function drawRoundedRect(
+	c: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	radius: number,
+	fill: string,
+	stroke: string,
+	strokeWidth: number,
+) {
+	c.beginPath();
+	c.moveTo(x + radius, y);
+	c.lineTo(x + width - radius, y);
+	c.quadraticCurveTo(x + width, y, x + width, y + radius);
+	c.lineTo(x + width, y + height - radius);
+	c.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+	c.lineTo(x + radius, y + height);
+	c.quadraticCurveTo(x, y + height, x, y + height - radius);
+	c.lineTo(x, y + radius);
+	c.quadraticCurveTo(x, y, x + radius, y);
+	c.closePath();
+	c.fillStyle = fill;
+	c.fill();
+	if (strokeWidth > 0) {
+		c.strokeStyle = stroke;
+		c.lineWidth = strokeWidth;
+		c.stroke();
+	}
+}
+
+/**
+ * Draw a glassmorphic floating tooltip near the active/hovered band
+ */
+function drawTooltip(c: CanvasRenderingContext2D, width: number, height: number) {
+	const targetIndex = draggingIndex !== null ? draggingIndex : (hoveredIndex !== null ? hoveredIndex : selectedIndex);
+	if (targetIndex === null || !localBands[targetIndex]) return;
+
+	const band = localBands[targetIndex];
+	const bx = freqToX(band.freq, width);
+	const by = gainToY(band.gain, height);
+
+	const tooltipW = 180;
+	const tooltipH = 50;
+	const radius = 8;
+
+	// Center horizontally, clamp to canvas bounds
+	let tx = bx - tooltipW / 2;
+	tx = Math.max(CONFIG.padding, Math.min(width - CONFIG.padding - tooltipW, tx));
+
+	// Position above handle, or below if too close to top
+	let ty = by - tooltipH - 15;
+	if (ty < CONFIG.padding) {
+		ty = by + 20; // Draw below handle
+	}
+
+	c.save();
+	c.shadowColor = "rgba(0, 0, 0, 0.4)";
+	c.shadowBlur = 12;
+	c.shadowOffsetX = 0;
+	c.shadowOffsetY = 6;
+
+	// Glassmorphic background and border
+	drawRoundedRect(
+		c,
+		tx,
+		ty,
+		tooltipW,
+		tooltipH,
+		radius,
+		"rgba(15, 23, 42, 0.92)", // Slate-900 glass look
+		"rgba(167, 139, 250, 0.35)", // Violet border
+		1.5,
+	);
+	c.restore();
+
+	// Draw Text
+	c.fillStyle = "#ffffff";
+	c.font = "bold 11px 'Outfit', sans-serif";
+	c.textAlign = "left";
+	const typeMap: Record<string, string> = {
+		PK: "Peak",
+		LSQ: "Low Shelf",
+		HSQ: "High Shelf",
+		NOTCH: "Notch",
+	};
+	const typeStr = typeMap[band.type] || band.type;
+	c.fillText(`Band ${band.index + 1} (${typeStr})`, tx + 10, ty + 18);
+
+	// Subtitle values
+	c.fillStyle = "rgba(255, 255, 255, 0.7)";
+	c.font = "10px 'Outfit', sans-serif";
+	c.fillText(
+		`Freq: ${band.freq} Hz  |  Gain: ${band.gain} dB  |  Q: ${band.q}`,
+		tx + 10,
+		ty + 36,
+	);
+}
+
+/**
  * Redraw the entire canvas
  */
 export function draw() {
@@ -363,6 +489,7 @@ export function draw() {
 	drawGrid(ctx, width, height);
 	drawCurve(ctx, width, height);
 	drawHandles(ctx, width, height);
+	drawTooltip(ctx, width, height);
 }
 
 /**
@@ -426,6 +553,45 @@ export function renderPEQ(
 			}
 		});
 
+		// Canvas Hover Detection
+		canvas.addEventListener("mousemove", (e) => {
+			if (draggingIndex !== null) return;
+			const rect = canvas!.getBoundingClientRect();
+			const w = (canvas as any).logicalWidth || rect.width;
+			const h = (canvas as any).logicalHeight || rect.height;
+			const scaleX = w / rect.width;
+			const scaleY = h / rect.height;
+			const mx = (e.clientX - rect.left) * scaleX;
+			const my = (e.clientY - rect.top) * scaleY;
+
+			let closestIdx = -1;
+			let minDst = 1000;
+
+			localBands.forEach((band) => {
+				const bx = freqToX(band.freq, w);
+				const by = gainToY(band.gain, h);
+				const dist = Math.sqrt((mx - bx) ** 2 + (my - by) ** 2);
+				if (dist < 24) {
+					if (dist < minDst) {
+						minDst = dist;
+						closestIdx = band.index;
+					}
+				}
+			});
+
+			if (closestIdx !== hoveredIndex) {
+				hoveredIndex = closestIdx === -1 ? null : closestIdx;
+				draw();
+			}
+		});
+
+		canvas.addEventListener("mouseleave", () => {
+			if (hoveredIndex !== null) {
+				hoveredIndex = null;
+				draw();
+			}
+		});
+
 		window.addEventListener("mousemove", (e) => {
 			if (draggingIndex === null || !canvas) return;
 
@@ -454,7 +620,18 @@ export function renderPEQ(
 			// Limit gain range within -12 to 12
 			const clampedGain = Math.max(-12, Math.min(12, gain));
 
-			handleUpdate(draggingIndex, "freq", freq);
+			// Enforce boundaries to prevent overlapping frequencies
+			let minAllowed = CONFIG.minFreq;
+			let maxAllowed = CONFIG.maxFreq;
+			if (draggingIndex > 0 && localBands[draggingIndex - 1]) {
+				minAllowed = localBands[draggingIndex - 1].freq;
+			}
+			if (draggingIndex < localBands.length - 1 && localBands[draggingIndex + 1]) {
+				maxAllowed = localBands[draggingIndex + 1].freq;
+			}
+			const clampedFreq = Math.max(minAllowed, Math.min(maxAllowed, freq));
+
+			handleUpdate(draggingIndex, "freq", clampedFreq);
 			handleUpdate(draggingIndex, "gain", clampedGain);
 		});
 

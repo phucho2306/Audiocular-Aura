@@ -51,6 +51,12 @@ export function isCompareActive(): boolean {
 	return slotA !== null && slotB !== null;
 }
 
+export function getComparedEqState(): EQ | null {
+	if (!slotA || !slotB) return null;
+	return activeSlot === "A" ? slotB.eqState : slotA.eqState;
+}
+(window as any).getComparedEqState = getComparedEqState;
+
 // Focused Band Index
 let focusedBandIndex: number = -1;
 
@@ -743,6 +749,13 @@ export async function connectToDevice() {
 			renderUI(eqState);
 		}
 
+		// Restore profile name for this specific device from localStorage if available
+		const deviceKey = `last_applied_eq_${device.vendorId}_${device.productId}`;
+		const savedName = localStorage.getItem(deviceKey);
+		if (savedName) {
+			setLastAppliedEqName(savedName);
+		}
+
 		if (autoPreampEnabled) {
 			await recalculateAutoPreamp(true);
 		}
@@ -891,6 +904,19 @@ export async function updateState(
 		value = parseFloat(value as string);
 	else if (key === "enabled") value = Boolean(value);
 
+	// Restrict frequency boundary limits to prevent overlapping frequencies
+	if (key === "freq") {
+		let minAllowed = 20;
+		let maxAllowed = 20000;
+		if (index > 0 && eqState[index - 1]) {
+			minAllowed = eqState[index - 1].freq;
+		}
+		if (index < eqState.length - 1 && eqState[index + 1]) {
+			maxAllowed = eqState[index + 1].freq;
+		}
+		value = Math.max(minAllowed, Math.min(maxAllowed, value as number));
+	}
+
 	setEQ(index, key as keyof Band, value);
 
 	if (key === "type" && value === "NOTCH") {
@@ -993,6 +1019,13 @@ export async function autoConnectDevice() {
 			await readDeviceParams(dev);
 		} else {
 			renderUI(eqState);
+		}
+
+		// Restore profile name for this specific device from localStorage if available
+		const deviceKey = `last_applied_eq_${dev.vendorId}_${dev.productId}`;
+		const savedName = localStorage.getItem(deviceKey);
+		if (savedName) {
+			setLastAppliedEqName(savedName);
 		}
 
 		if (autoPreampEnabled) {
