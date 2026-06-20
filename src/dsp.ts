@@ -690,10 +690,12 @@ export async function syncToDevice() {
 
 		log("Sync Complete.");
 
-		// Save current profile name to device-specific key in localStorage
-		const currentName = getLastAppliedEqName();
-		if (currentName) {
-			localStorage.setItem(`last_applied_eq_${device.vendorId}_${device.productId}`, currentName);
+		// Save current profile name to device-specific key in localStorage (skip during active A/B compare)
+		if (typeof (window as any).isCompareActive === "function" && !(window as any).isCompareActive()) {
+			const currentName = getLastAppliedEqName();
+			if (currentName) {
+				localStorage.setItem(`last_applied_eq_${device.vendorId}_${device.productId}`, currentName);
+			}
 		}
 	} finally {
 		hideSyncing();

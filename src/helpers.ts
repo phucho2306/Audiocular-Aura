@@ -61,18 +61,28 @@ export function updateGlobalGainUI(val: number) {
 		}
 	}
 
-	// Update secondary applied note (for Savitech devices with decimal gain values)
+	// Update secondary applied note (for Savitech devices with decimal gain values, or active A/B Level Matching)
+	const isCompare = typeof (window as any).isCompareActive === "function" && (window as any).isCompareActive();
 	const preampAppliedNote = document.getElementById("preampAppliedNote") as HTMLElement;
 	if (preampAppliedNote) {
-		if (protocol === "SAVITECH") {
+		if (isCompare) {
+			const gA = (window as any).getSlotAGain?.() ?? 0;
+			const gB = (window as any).getSlotBGain?.() ?? 0;
+			const matchedVal = Math.min(gA, gB);
+			preampAppliedNote.innerText = `(Level Matched to ${matchedVal.toFixed(1)} dB)`;
+			preampAppliedNote.className = "preamp-step-indicator warning";
+			preampAppliedNote.style.display = "block";
+		} else if (protocol === "SAVITECH") {
 			const roundedVal = Math.round(val);
 			if (Math.abs(val - roundedVal) > 0.001) {
 				preampAppliedNote.innerText = `(applies as ${roundedVal} dB)`;
+				preampAppliedNote.className = "";
 				preampAppliedNote.style.display = "block";
 			} else {
 				preampAppliedNote.style.display = "none";
 			}
 		} else {
+			preampAppliedNote.className = "";
 			preampAppliedNote.style.display = "none";
 		}
 	}
