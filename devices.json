@@ -64,5 +64,13 @@
     "chipset": "FiiO DSP Core",
     "protocol": "FIIO",
     "description": "Supports FiiO's custom 10-band DSP PEQ protocol over proprietary raw HID commands."
+  },
+  {
+    "vid": 12722,
+    "pid": 273,
+    "name": "JKALLY JM12 / KT02H20 HIFI Audio",
+    "chipset": "KT02H20 DSP Core",
+    "protocol": "FIIO_JA11",
+    "description": "Supports custom 5-band KT02H20 DSP PEQ protocol over raw HID commands."
   }
 ]

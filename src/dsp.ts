@@ -8,6 +8,7 @@ import {
 	REPORT_ID_FIIO,
 	VID_COMTRUE,
 	VID_FIIO,
+	VID_JKALLY_KTMICRO,
 	activeDacs,
 } from "./constants.ts";
 import {
@@ -67,6 +68,7 @@ export function getProtocol(device: HIDDevice) {
 
 	// 3. Fallback to vendor ID matching
 	if (device.vendorId === VID_COMTRUE || device.vendorId === 0x35d8) return "MOONDROP";
+	if (device.vendorId === VID_JKALLY_KTMICRO) return "FIIO_JA11";
 	if (device.vendorId === VID_FIIO) {
 		const prodName = (device.productName || "").toUpperCase();
 		if (device.productId === 258 || prodName.includes("JA11")) return "FIIO_JA11";

@@ -14,6 +14,7 @@ export const VID_SAVITECH_OFFICIAL = 0x262a;  // Fosi, iBasso
 export const VID_COMTRUE = 0x2fc6;            // Moondrop, Tanchjim (Comtrue CT7601)
 export const VID_FIIO = 0x2972;               // FiiO (JA11, KA17, etc.)
 export const VID_AUDIOCULAR = 0x3302;         // TTGK Technology / Audiocular Aura
+export const VID_JKALLY_KTMICRO = 0x31b2;     // JKALLY (KT02H20 HIFI Audio)
 export const PID_TRN_BLACK_PEARL = 0x43e8;    // TRN Black Pearl PID
 
 // --- WALKPLAY (SAVITECH) COMMANDS ---
@@ -137,6 +138,14 @@ export const KNOWN_DACS: IdentifiedDac[] = [
 		chipset: "KT02H20 DSP Core",
 		protocol: "FIIO_JA11",
 		description: "Supports FiiO's custom 5-band KT02H20 DSP PEQ protocol over raw HID commands.",
+	},
+	{
+		vid: VID_JKALLY_KTMICRO,
+		pid: 0x0111,
+		name: "JKALLY JM12 / KT02H20 HIFI Audio",
+		chipset: "KT02H20 DSP Core",
+		protocol: "FIIO_JA11",
+		description: "Supports custom 5-band KT02H20 DSP PEQ protocol over raw HID commands.",
 	},
 	{
 		vid: VID_FIIO,
