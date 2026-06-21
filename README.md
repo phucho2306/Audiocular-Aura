@@ -58,6 +58,8 @@ AuraPEQ features a multi-protocol hardware communication layer that automaticall
 
 > [!NOTE]
 > **Moondrop Protocol Notes:** Since Moondrop devices rely on host-side coefficient calculations, A/B comparison level-matching is bypassed automatically to prevent gain packet corruption. A/B comparison switches active slots normally.
+>
+> **Dawn Pro 2 (VID `0x35D8`):** All HID read/write operations (EQ bands, preamp gain, flash save) use Report ID `0x4B` — the same as Comtrue CT7601-based devices. If EQ writes were silently failing with `"Failed to write the report."`, this was the cause; it is now fixed. Panning/balance was unaffected as it already routed through the correct report ID path.
 
 ---
 
