@@ -376,8 +376,17 @@ export async function readDeviceParams(device: HIDDevice) {
 			} catch (err) {
 				log(`[Moondrop] Device read not supported or failed (${(err as Error).message}). Loading configuration from local storage.`);
 				// Load last saved values from localStorage
-				const savedEq = localStorage.getItem("aura_active_eq_state");
-				const savedGain = localStorage.getItem("aura_active_preamp_gain");
+				const isDawnPro2 = device.vendorId === 0x35d8 && device.productId === 0x11d;
+				let savedEq = null;
+				let savedGain = null;
+
+				if (isDawnPro2) {
+					savedEq = localStorage.getItem(`last_eq_state_${device.vendorId}_${device.productId}`);
+					savedGain = localStorage.getItem(`last_preamp_gain_${device.vendorId}_${device.productId}`);
+				}
+
+				if (!savedEq) savedEq = localStorage.getItem("aura_active_eq_state");
+				if (!savedGain) savedGain = localStorage.getItem("aura_active_preamp_gain");
 				
 				let preamp = savedGain !== null ? Number(savedGain) : 0;
 				let bands = savedEq ? JSON.parse(savedEq) : defaultEqState();
@@ -704,6 +713,9 @@ export async function syncToDevice() {
 
 		// Moondrop: use dedicated sync path
 		if (protocol === "MOONDROP") {
+			// Persist device-specific EQ state
+			localStorage.setItem(`last_eq_state_${device.vendorId}_${device.productId}`, JSON.stringify(eqState));
+
 			// Write all bands sequentially (including disabled ones) using Moondrop's coefficient-based writes
 			for (const band of eqState) {
 				await writeBand(device, band, "MOONDROP");
