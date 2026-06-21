@@ -220,14 +220,17 @@ function waitForReport(
 
 		function listener(event: any) {
 			const data = new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
-			const cmd = data[0];
-			const subcmd = data[1];
+			const hasReportId = event.reportId !== undefined && event.reportId !== 0;
+			const offset = hasReportId ? 1 : 0;
+			const cmd = data[offset];
+			const subcmd = data[offset + 1];
 
 			if (cmd === expectedCmd && subcmd === expectedSubcmd) {
-				if (expectedBandIndex === undefined || data[4] === expectedBandIndex) {
+				const bandIdxIndex = offset + 4;
+				if (expectedBandIndex === undefined || data[bandIdxIndex] === expectedBandIndex) {
 					clearTimeout(timer);
 					device.removeEventListener("inputreport", listener);
-					resolve(data);
+					resolve(hasReportId ? data.subarray(1) : data);
 				}
 			}
 		}
