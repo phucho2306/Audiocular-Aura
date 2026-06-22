@@ -1000,17 +1000,9 @@ export async function updateState(
 		value = parseFloat(value as string);
 	else if (key === "enabled") value = Boolean(value);
 
-	// Restrict frequency boundary limits to prevent overlapping frequencies
+	// Restrict frequency to valid audio range boundaries (20 Hz - 20000 Hz)
 	if (key === "freq") {
-		let minAllowed = 20;
-		let maxAllowed = 20000;
-		if (index > 0 && eqState[index - 1]) {
-			minAllowed = eqState[index - 1].freq;
-		}
-		if (index < eqState.length - 1 && eqState[index + 1]) {
-			maxAllowed = eqState[index + 1].freq;
-		}
-		value = Math.max(minAllowed, Math.min(maxAllowed, value as number));
+		value = Math.max(20, Math.min(20000, value as number));
 	}
 
 	setEQ(index, key as keyof Band, value);

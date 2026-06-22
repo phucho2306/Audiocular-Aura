@@ -620,16 +620,7 @@ export function renderPEQ(
 			// Limit gain range within -12 to 12
 			const clampedGain = Math.max(-12, Math.min(12, gain));
 
-			// Enforce boundaries to prevent overlapping frequencies
-			let minAllowed = CONFIG.minFreq;
-			let maxAllowed = CONFIG.maxFreq;
-			if (draggingIndex > 0 && localBands[draggingIndex - 1]) {
-				minAllowed = localBands[draggingIndex - 1].freq;
-			}
-			if (draggingIndex < localBands.length - 1 && localBands[draggingIndex + 1]) {
-				maxAllowed = localBands[draggingIndex + 1].freq;
-			}
-			const clampedFreq = Math.max(minAllowed, Math.min(maxAllowed, freq));
+			const clampedFreq = Math.max(CONFIG.minFreq, Math.min(CONFIG.maxFreq, freq));
 
 			handleUpdate(draggingIndex, "freq", clampedFreq);
 			handleUpdate(draggingIndex, "gain", clampedGain);
