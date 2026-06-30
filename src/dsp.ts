@@ -32,6 +32,28 @@ import { t } from "./i18n.ts";
 // Moondrop devices use REPORT_ID_DEFAULT (0x4B) for all HID reports
 const REPORT_ID_MOON = REPORT_ID_DEFAULT;
 
+/**
+ * Get the correct HID packet size for a Moondrop device.
+ * Different Moondrop devices use different packet sizes:
+ * - Dawn Pro 2 (PID 0x011D): 63 bytes
+ * - Free DSP (PID 0x1496): 64 bytes
+ * - Default: 63 bytes (safe fallback)
+ * 
+ * Note: Fixed Moondrop Free DSP (PID 0x1496) write failure:
+ * Interface 3 (HID) has an IN endpoint with wMaxPacketSize = 0x40 (64 bytes).
+ * Using 64 bytes instead of 63 bytes for PID 0x1496 prevents "Failed to write the report" error.
+ */
+function getMoondropPacketSize(device: HIDDevice): number {
+	// Dawn Pro 2 (PID 0x011D) uses 63 bytes
+	if (device.productId === 0x011D) return 63;
+
+	// Free DSP (PID 0x1496) uses 64 bytes
+	if (device.productId === 0x1496) return 64;
+
+	// Default for unknown Moondrop devices: 63 bytes (safe fallback)
+	return 63;
+}
+
 const REV_TYPE_MAP_JA11: Record<number, string> = { 0: "PK", 1: "LSQ", 2: "HSQ" };
 
 /**
@@ -246,7 +268,7 @@ async function readMoondropParams(device: HIDDevice): Promise<{ preamp: number; 
 	log("Reading Moondrop device configuration...");
 
 	// 1. Read preamp gain
-	const gainPacket = new Uint8Array(63);
+	const gainPacket = new Uint8Array(getMoondropPacketSize(device));
 	gainPacket[0] = CMD_MOON.READ;
 	gainPacket[1] = CMD_MOON.PRE_GAIN;
 
@@ -272,8 +294,9 @@ async function readMoondropParams(device: HIDDevice): Promise<{ preamp: number; 
 	const typeMapRev: Record<number, string> = { 1: "LSQ", 2: "PK", 3: "HSQ" };
 
 	for (let i = 0; i < 10; i++) {
-		const bandPacket = new Uint8Array(63);
+		const bandPacket = new Uint8Array(getMoondropPacketSize(device));
 		bandPacket[0] = CMD_MOON.READ;
+
 		bandPacket[1] = CMD_MOON.UPDATE_EQ;
 		bandPacket[2] = 0x18;
 		bandPacket[3] = 0;
@@ -790,7 +813,7 @@ export async function flashToFlash() {
 			logTx(2, packet);
 			await device.sendReport(2, packet);
 		} else if (protocol === "MOONDROP") {
-			const packet = new Uint8Array(63);
+			const packet = new Uint8Array(getMoondropPacketSize(device));
 			packet[0] = CMD_MOON.WRITE;
 			packet[1] = CMD_MOON.SAVE_FLASH;
 			await device.sendReport(REPORT_ID_MOON, packet);
@@ -887,7 +910,7 @@ async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
 		const coeffs = encodeBiquadMoondrop(band.type, band.freq, gain, band.q);
 		const typeMap = { PK: 2, LSQ: 1, HSQ: 3 };
 
-		const packet = new Uint8Array(63);
+		const packet = new Uint8Array(getMoondropPacketSize(device));
 		packet[0] = CMD_MOON.WRITE;
 		packet[1] = CMD_MOON.UPDATE_EQ;
 		packet[2] = 0x18;
@@ -916,7 +939,7 @@ async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
 		await device.sendReport(REPORT_ID_MOON, packet);
 
 		// Coefficients trigger packet
-		const enablePacket = new Uint8Array(63);
+		const enablePacket = new Uint8Array(getMoondropPacketSize(device));
 		enablePacket[0] = CMD_MOON.WRITE;
 		enablePacket[1] = CMD_MOON.UPDATE_EQ_COEFF;
 		enablePacket[2] = band.index;
@@ -938,7 +961,7 @@ async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
 async function setGlobalGainMoondrop(device: HIDDevice, gain: number) {
 	try {
 		const val = Math.round(gain * 256);
-		const packet = new Uint8Array(63);
+		const packet = new Uint8Array(getMoondropPacketSize(device));
 		packet[0] = CMD_MOON.WRITE;
 		packet[1] = CMD_MOON.PRE_GAIN;
 		packet[2] = 0;

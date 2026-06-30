@@ -59,7 +59,9 @@ AuraPEQ features a multi-protocol hardware communication layer that automaticall
 > [!NOTE]
 > **Moondrop Protocol Notes:** Since Moondrop devices rely on host-side coefficient calculations, A/B comparison level-matching is bypassed automatically to prevent gain packet corruption. A/B comparison switches active slots normally.
 >
-> **Dawn Pro 2 (VID `0x35D8`):** All HID read/write operations (EQ bands, preamp gain, flash save) use Report ID `0x4B` — the same as Comtrue CT7601-based devices. Furthermore, the payload size must be restricted to exactly 63 bytes so that prepending the 1-byte Report ID yields the exact 64-byte descriptor limit. If EQ writes were failing with `"Failed to write the report."`, this combination solves the issue. Panning/balance was unaffected as it already routed through the correct path.
+> **Dawn Pro 2 (VID `0x35D8`, PID `0x011D`):** All HID read/write operations (EQ bands, preamp gain, flash save) use Report ID `0x4B` — the same as Comtrue CT7601-based devices. The payload size must be restricted to exactly 63 bytes.
+>
+> **Free DSP (VID `0x35D8`, PID `0x1496`):** Also uses Report ID `0x4B` but requires a payload size of exactly 64 bytes due to its IN endpoint `wMaxPacketSize` being `0x40` (64 bytes). The application dynamically scales the packet size for these Moondrop devices to prevent the `"Failed to write the report."` error. Panning/balance is unaffected.
 
 ---
 
