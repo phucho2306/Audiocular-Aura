@@ -118,6 +118,7 @@ export function getProtocol(device: HIDDevice) {
 	}
 
 	// 3. Fallback to vendor ID matching
+	if (device.vendorId === 0x35d8 && device.productId === 0x1496) return "CONEXANT";
 	if (device.vendorId === VID_COMTRUE || device.vendorId === 0x35d8) return "MOONDROP";
 	if (device.vendorId === VID_JKALLY_KTMICRO) return "FIIO_JA11";
 	if (device.vendorId === VID_FIIO) {
@@ -206,16 +207,16 @@ export async function setDeviceGlobalGain(gain: number, skipBandSync = false) {
 
 	const protocol = getProtocol(device);
 
-	// Moondrop uses host-side coefficient calculation; A/B level-matching would corrupt the gain value.
+	// Moondrop/Conexant uses host-side coefficient calculation; A/B level-matching would corrupt the gain value.
 	let appliedGain = gain;
-	if (protocol !== "MOONDROP") {
+	if (protocol !== "MOONDROP" && protocol !== "CONEXANT") {
 		if (typeof (window as any).isCompareActive === "function" && (window as any).isCompareActive()) {
 			const gA = (window as any).getSlotAGain?.() ?? 0;
 			const gB = (window as any).getSlotBGain?.() ?? 0;
 			appliedGain = Math.min(gA, gB);
 		}
 	} else {
-		// Moondrop hardware range is -20 to +10 dB
+		// Moondrop/Conexant hardware range is -20 to +10 dB
 		appliedGain = Math.max(-20, Math.min(10, appliedGain));
 	}
 
@@ -227,6 +228,8 @@ export async function setDeviceGlobalGain(gain: number, skipBandSync = false) {
 		await setMasterGainJa11(device, appliedGain);
 	} else if (protocol === "MOONDROP") {
 		await setGlobalGainMoondrop(device, appliedGain);
+	} else if (protocol === "CONEXANT") {
+		await setGlobalGainConexant(device, appliedGain);
 	} else {
 		// Savitech Default
 		const gVal = appliedGain < 0 ? 256 + Math.round(appliedGain) : Math.round(appliedGain);
@@ -607,7 +610,7 @@ export function setupListener(device: HIDDevice) {
 			return;
 		}
 
-		if (protocol === "MOONDROP") {
+		if (protocol === "MOONDROP" || protocol === "CONEXANT") {
 			return;
 		}
 
@@ -773,7 +776,30 @@ export async function syncToDevice() {
 			}
 			// Write gain without A/B modifications
 			await setDeviceGlobalGain(getGlobalGainState(), true);
+
+			// Activate/Select custom EQ preset slot index 0 to ensure the coefficients take effect immediately
+			await selectPresetMoondrop(device, 0);
+
 			console.debug("[DEBUG] syncToDevice: Moondrop dedicated sync path completed.");
+			log("Sync Complete.");
+			return;
+		}
+
+		// Conexant: use dedicated sync path
+		if (protocol === "CONEXANT") {
+			// Persist device-specific EQ state
+			localStorage.setItem(`last_eq_state_${device.vendorId}_${device.productId}`, JSON.stringify(eqState));
+
+			// Write all bands sequentially (write to RAM)
+			for (const band of eqState) {
+				await writeBandConexant(device, band, (band.enabled ? band.gain : 0) + getTiltGainAtFreq(band.freq), false);
+				await delay(30);
+			}
+
+			// Activate/Select custom EQ mode index 0
+			await switchEQModeConexant(device, 0);
+
+			console.debug("[DEBUG] syncToDevice: Conexant dedicated sync path completed.");
 			log("Sync Complete.");
 			return;
 		}
@@ -846,6 +872,24 @@ export async function flashToFlash() {
 			packet[0] = CMD_MOON.WRITE;
 			packet[1] = CMD_MOON.SAVE_FLASH;
 			await sendMoondropReport(device, packet);
+		} else if (protocol === "CONEXANT") {
+			// Write all bands in Flash Mode (flash = true)
+			const eqState = getEqState();
+			if (eqState) {
+				for (const band of eqState) {
+					const val = (band.enabled ? band.gain : 0) + getTiltGainAtFreq(band.freq);
+					const effectiveGain = Math.max(-12, Math.min(12, val));
+					await writeBandConexant(device, band, effectiveGain, true);
+					await delay(30);
+				}
+			}
+			// Send the final Flash commit packet: command 220 [-1, 0, 0, 0, 0, ...]
+			const commitData = new Array(13).fill(0);
+			commitData[0] = -1; // -1 represents commit / save custom EQ option
+			const commitPacket = buildConexantPacket(220, commitData);
+			logTx(1, commitPacket);
+			await device.sendReport(1, commitPacket);
+			await delay(100);
 		} else {
 			// Savitech Flash Save
 			await sendPacketSavitech(device, [
@@ -891,6 +935,8 @@ export async function writeBand(
 		await writeBandJa11(device, band, effectiveGain);
 	} else if (protocol === "MOONDROP") {
 		await writeBandMoondrop(device, band, effectiveGain);
+	} else if (protocol === "CONEXANT") {
+		await writeBandConexant(device, band, effectiveGain);
 	} else {
 		await writeBandSavitech(device, band, effectiveGain);
 	}
@@ -989,9 +1035,200 @@ async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
 		enablePacket[5] = 255;
 		enablePacket[6] = 255;
 		await sendMoondropReport(device, enablePacket);
+
+		// Activate/Select custom EQ preset slot index 0 to ensure the coefficients take effect immediately
+		await selectPresetMoondrop(device, 0);
 	} catch (err) {
 		console.error(`[Moondrop] Failed to write band ${band.index}:`, err);
 		log(`[Moondrop] Write band ${band.index} failed: ${(err as Error).message}`);
+		throw err;
+	}
+}
+
+/**
+ * Select a specific EQ preset/profile index on Moondrop/Comtrue devices.
+ * Custom/User PEQ slot is always index 0.
+ */
+async function selectPresetMoondrop(device: HIDDevice, index: number) {
+	try {
+		const packet = new Uint8Array(getMoondropPacketSize(device));
+		packet[0] = CMD_MOON.WRITE;
+		packet[1] = CMD_MOON.SELECT_PRESET;
+		packet[2] = 0;
+		packet[3] = index & 0xff;
+		packet[4] = (index >> 8) & 0xff;
+		console.debug(`[Moondrop] Selecting EQ preset slot index: ${index}`);
+		await sendMoondropReport(device, packet);
+	} catch (err) {
+		console.error(`[Moondrop] Failed to select preset slot index ${index}:`, err);
+		log(`[Moondrop] Select preset failed: ${(err as Error).message}`);
+		throw err;
+	}
+}
+
+/**
+ * --- CONEXANT (FREEMAN) PROTOCOL HANDLERS ---
+ */
+
+const CONEXANT_SAMPLE_RATES: ReadonlyArray<[number, number]> = [
+	[4, 44100],
+	[5, 48000],
+	[6, 96000],
+	[7, 192000],
+	[8, 384000],
+];
+
+/**
+ * Encodes Peaking Biquad filters specifically for Conexant.
+ * Conexant expects coefficients scaled by 2^22 (Q22 fixed point) and negative A coefficients.
+ */
+function encodeBiquadConexantForRate(type: string, freq: number, gain: number, q: number, sampleRate: number): number[] {
+	const coeffs = computeBiquadCoeffs(type, freq, gain, q, sampleRate);
+	const scale = 4194304; // Q22 = 2^22
+
+	return [
+		coeffs.b0,
+		coeffs.b1,
+		coeffs.b2,
+		-coeffs.a1, // Conexant expects -a1
+		-coeffs.a2, // Conexant expects -a2
+	].map((c) => Math.round(c * scale));
+}
+
+/**
+ * Packs a Conexant transaction into a little-endian 32-bit packet array.
+ */
+function buildConexantPacket(commandId: number, data: number[]): Uint8Array {
+	const packet = new Uint8Array(62);
+	packet[0] = 1; // Report ID = 1
+	packet[1] = 1 & 0xff; // transaction ID low
+	packet[2] = (1 >> 8) & 0xff; // transaction ID high
+
+	const numWords = data.length;
+	const p1_combined = (numWords & 0xff) | ((commandId & 0xfff) << 16);
+	packet[3] = p1_combined & 0xff;
+	packet[4] = (p1_combined >> 8) & 0xff;
+	packet[5] = (p1_combined >> 16) & 0xff;
+	packet[6] = (p1_combined >> 24) & 0xff;
+
+	// Module ID = CafId("CTRL") = 0xB32D2300
+	const moduleId = 0xB32D2300;
+	packet[7] = moduleId & 0xff;
+	packet[8] = (moduleId >> 8) & 0xff;
+	packet[9] = (moduleId >> 16) & 0xff;
+	packet[10] = (moduleId >> 24) & 0xff;
+
+	// Write 32-bit data words
+	for (let i = 0; i < numWords; i++) {
+		const val = data[i];
+		const offset = 11 + i * 4;
+		packet[offset] = val & 0xff;
+		packet[offset + 1] = (val >> 8) & 0xff;
+		packet[offset + 2] = (val >> 16) & 0xff;
+		packet[offset + 3] = (val >> 24) & 0xff;
+	}
+
+	return packet;
+}
+
+/**
+ * Sets EQ Mode on Conexant. Index 0 is the custom/user EQ slot.
+ */
+async function switchEQModeConexant(device: HIDDevice, index: number) {
+	try {
+		// Switch mode payload: command 90 [90, index, 0, 0, ...]
+		const data = new Array(13).fill(0);
+		data[0] = 90;
+		data[1] = index;
+		const packet = buildConexantPacket(90, data);
+		logTx(1, packet);
+		await device.sendReport(1, packet);
+		console.debug(`[Conexant] Switched EQ Mode to index: ${index}`);
+	} catch (err) {
+		console.error("[Conexant] Failed to switch EQ Mode:", err);
+		throw err;
+	}
+}
+
+/**
+ * Set global preamp gain for Conexant.
+ */
+async function setGlobalGainConexant(device: HIDDevice, gain: number) {
+	// Conexant doesn't have a direct master preamp command in the log,
+	// but we can scale coefficients or save/commit custom preamp.
+	console.debug(`[Conexant] setGlobalGainConexant: ${gain} dB (stored in state) for device ${device.vendorId}`);
+}
+
+/**
+ * Write Conexant Band.
+ * For real-time updates, write to RAM using command 190 (0xbe).
+ * For Flash writes, write metadata + coefficients using command 220 (0xdc).
+ */
+async function writeBandConexant(device: HIDDevice, band: Band, gain: number, flash = false) {
+	try {
+		const bandIdx = band.index + 1; // 1-based index (1..9)
+		const typeMap = { PK: 0, LSQ: 1, HSQ: 2 }; // 0: PK, 1: LSQ, 2: HSQ
+		const filterType = typeMap[band.type as keyof typeof typeMap] ?? 0;
+
+		if (flash) {
+			// 1. Write Metadata: [0, bandIdx, freq, Q*256, type, gain*256]
+			const metadata = new Array(13).fill(0);
+			metadata[0] = 0;
+			metadata[1] = bandIdx;
+			metadata[2] = band.freq;
+			metadata[3] = Math.round(band.q * 256);
+			metadata[4] = filterType;
+			metadata[5] = Math.round(gain * 256);
+
+			const metaPacket = buildConexantPacket(220, metadata);
+			logTx(1, metaPacket);
+			await device.sendReport(1, metaPacket);
+			await delay(15);
+
+			// 2. Write coefficients for all 5 sample rates to Flash (command 220)
+			for (const [rateIdx, rateVal] of CONEXANT_SAMPLE_RATES) {
+				const q22Coeffs = encodeBiquadConexantForRate(band.type, band.freq, gain, band.q, rateVal);
+				const data = new Array(13).fill(0);
+				data[0] = rateIdx;
+				data[1] = bandIdx;
+				data[2] = 3; // pEQCoeff.Gain slot (always 3 in Conexant log)
+				data[3] = q22Coeffs[0]; // B0
+				data[4] = q22Coeffs[1]; // B1
+				data[5] = q22Coeffs[2]; // B2
+				data[6] = q22Coeffs[3]; // A0 (-a1)
+				data[7] = q22Coeffs[4]; // A1 (-a2)
+
+				const coeffPacket = buildConexantPacket(220, data);
+				logTx(1, coeffPacket);
+				await device.sendReport(1, coeffPacket);
+				await delay(15);
+			}
+		} else {
+			// Write to RAM: command 190 (0xbe)
+			// RAM payload structure: [0, bandIdx, gain*256 (preamp/gain?), B0, B1, B2, A0, A1, ...]
+			// Note: RAM coefficients are usually written for the current active sample rate, 
+			// but we can write to all sample rates or update the active slot index (index 0).
+			for (const [rateIdx, rateVal] of CONEXANT_SAMPLE_RATES) {
+				const q22Coeffs = encodeBiquadConexantForRate(band.type, band.freq, gain, band.q, rateVal);
+				const data = new Array(13).fill(0);
+				data[0] = rateIdx;
+				data[1] = bandIdx;
+				data[2] = 3;
+				data[3] = q22Coeffs[0];
+				data[4] = q22Coeffs[1];
+				data[5] = q22Coeffs[2];
+				data[6] = q22Coeffs[3];
+				data[7] = q22Coeffs[4];
+
+				const ramPacket = buildConexantPacket(190, data);
+				logTx(1, ramPacket);
+				await device.sendReport(1, ramPacket);
+				await delay(15);
+			}
+		}
+	} catch (err) {
+		console.error(`[Conexant] Failed to write band ${band.index}:`, err);
+		log(`[Conexant] Write band ${band.index} failed: ${(err as Error).message}`);
 		throw err;
 	}
 }
@@ -1405,6 +1642,12 @@ export function queueRealtimeBandWrite(device: HIDDevice, band: Band) {
 					await device.sendReport(2, packet);
 				} catch (e) {
 					log(`FiiO JA11 Realtime Commit Error: ${(e as Error).message}`);
+				}
+			} else if (protocol === "CONEXANT") {
+				try {
+					await switchEQModeConexant(device, 0);
+				} catch (e) {
+					log(`Conexant Realtime Commit Error: ${(e as Error).message}`);
 				}
 			}
 		} finally {

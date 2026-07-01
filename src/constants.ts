@@ -29,7 +29,6 @@ export const CMD_SAVI = {
 	END: 0x00,
 };
 
-// --- MOONDROP / COMTRUE COMMANDS ---
 export const CMD_MOON = {
 	WRITE: 1,
 	READ: 128,
@@ -38,6 +37,7 @@ export const CMD_MOON = {
 	SAVE_FLASH: 1,
 	PRE_GAIN: 35,
 	VER: 12,
+	SELECT_PRESET: 15,
 };
 
 // --- FIIO COMMANDS ---
@@ -75,7 +75,7 @@ export interface IdentifiedDac {
 	pid?: number;
 	name: string;
 	chipset?: string;
-	protocol: "SAVITECH" | "MOONDROP" | "FIIO" | "FIIO_JA11";
+	protocol: "SAVITECH" | "MOONDROP" | "FIIO" | "FIIO_JA11" | "CONEXANT";
 	description?: string;
 }
 
@@ -126,10 +126,18 @@ export const KNOWN_DACS: IdentifiedDac[] = [
 	},
 	{
 		vid: VID_COMTRUE,
-		name: "Moondrop Dawn Pro / FreeDSP / May / Tanchjim Space Lite",
+		name: "Moondrop Dawn Pro / May / Tanchjim Space Lite",
 		chipset: "Comtrue CT7601 (DSP Enabled)",
 		protocol: "MOONDROP",
 		description: "Supports Moondrop's Interactive DSP protocol with coefficients computed on-host.",
+	},
+	{
+		vid: 0x35d8,
+		pid: 0x1496,
+		name: "Moondrop FreeDSP",
+		chipset: "Conexant (Freeman DSP)",
+		protocol: "CONEXANT",
+		description: "USB-C IEM cable featuring balanced DAC and integrated Conexant DSP core.",
 	},
 	{
 		vid: VID_FIIO,

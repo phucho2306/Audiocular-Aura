@@ -1156,6 +1156,26 @@ export function adjustBandsForDevice(dev: HIDDevice | null) {
 			stripsContainer.style.setProperty("--bands-count-tablet", "5");
 			stripsContainer.style.setProperty("--bands-count-mobile", "2");
 		}
+	} else if (protocol === "CONEXANT") {
+		if (eqState.length !== 9) {
+			eqState = [
+				{ index: 0, freq: 31, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 1, freq: 62, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 2, freq: 125, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 3, freq: 250, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 4, freq: 500, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 5, freq: 1000, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 6, freq: 2000, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 7, freq: 4000, gain: 0, q: 0.7, type: "PK", enabled: true },
+				{ index: 8, freq: 8000, gain: 0, q: 0.7, type: "PK", enabled: true },
+			] as EQ;
+		}
+		if (stripsContainer) {
+			stripsContainer.innerHTML = "";
+			stripsContainer.style.setProperty("--bands-count", "9");
+			stripsContainer.style.setProperty("--bands-count-tablet", "9");
+			stripsContainer.style.setProperty("--bands-count-mobile", "3");
+		}
 	} else {
 		if (eqState.length !== 10) {
 			eqState = defaultEqState();
