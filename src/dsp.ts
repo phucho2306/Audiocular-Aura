@@ -923,42 +923,56 @@ async function writeBandSavitech(device: HIDDevice, band: Band, gain: number) {
 }
 
 /**
- * Write band for Moondrop devices
+ * Write band for Moondrop devices.
+ * Sends one UPDATE_EQ packet per supported sample rate (44100, 48000, 96000,
+ * 192000 Hz) with coefficients computed at the correct Fs for each slot.
+ * This matches the per-rate "saveEQParamsToFlash" flow in the official
+ * Moondrop Android app (FreemanCnxtUsbDevice). 384000 Hz is skipped because
+ * the CT7601 SDK itself cannot compute valid coefficients at that rate
+ * (convertRes=1024 / eqCoeff==null), as confirmed by the Android logcat.
  */
 async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
 	try {
-		const coeffs = encodeBiquadMoondrop(band.type, band.freq, gain, band.q);
 		const typeMap = { PK: 2, LSQ: 1, HSQ: 3 };
 
-		const packet = new Uint8Array(getMoondropPacketSize(device));
-		packet[0] = CMD_MOON.WRITE;
-		packet[1] = CMD_MOON.UPDATE_EQ;
-		packet[2] = 0x18;
-		packet[3] = 0x00;
-		packet[4] = band.index;
-
-		const coeffBytes = encodeToByteArray(coeffs);
-		packet.set(coeffBytes, 7);
-
-		packet[27] = band.freq & 0xff;
-		packet[28] = (band.freq >> 8) & 0xff;
-
+		// Build shared per-band metadata once
 		const qVal = Math.round(band.q * 256);
-		packet[29] = qVal & 255;
-		packet[30] = (qVal >> 8) & 255;
-
 		const gainVal = Math.round(gain * 256);
-		packet[31] = gainVal & 255;
-		packet[32] = (gainVal >> 8) & 255;
+		const typeCode = typeMap[band.type as keyof typeof typeMap] || 2;
 
-		packet[33] = typeMap[band.type as keyof typeof typeMap] || 2;
-		packet[35] = 0;
+		// Send one UPDATE_EQ packet per sample rate with correctly-computed coefficients
+		for (const [sampleRateIdx, sampleRate] of MOONDROP_SAMPLE_RATES) {
+			const coeffs = encodeBiquadMoondropForRate(band.type, band.freq, gain, band.q, sampleRate);
+			const coeffBytes = encodeToByteArray(coeffs);
 
-		console.debug(`[Moondrop] Writing band ${band.index}: freq=${band.freq}, gain=${gain}, q=${band.q}`);
-		logTx(REPORT_ID_MOON, packet);
-		await sendMoondropReport(device, REPORT_ID_MOON, packet);
+			const packet = new Uint8Array(getMoondropPacketSize(device));
+			packet[0] = CMD_MOON.WRITE;
+			packet[1] = CMD_MOON.UPDATE_EQ;
+			packet[2] = 0x18;
+			packet[3] = sampleRateIdx; // CT7601 sample-rate slot index (4-7)
+			packet[4] = band.index;
 
-		// Coefficients trigger packet
+			packet.set(coeffBytes, 7);
+
+			packet[27] = band.freq & 0xff;
+			packet[28] = (band.freq >> 8) & 0xff;
+			packet[29] = qVal & 255;
+			packet[30] = (qVal >> 8) & 255;
+			packet[31] = gainVal & 255;
+			packet[32] = (gainVal >> 8) & 255;
+			packet[33] = typeCode;
+			packet[35] = 0;
+
+			console.debug(
+				`[Moondrop] Writing band ${band.index} @ ${sampleRate} Hz (idx ${sampleRateIdx}): ` +
+				`freq=${band.freq}, gain=${gain}, q=${band.q}`
+			);
+			logTx(REPORT_ID_MOON, packet);
+			await sendMoondropReport(device, REPORT_ID_MOON, packet);
+			await delay(10); // Small inter-rate delay to avoid USB buffer overrun
+		}
+
+		// Send UPDATE_EQ_COEFF trigger once after all sample-rate packets for this band
 		const enablePacket = new Uint8Array(getMoondropPacketSize(device));
 		enablePacket[0] = CMD_MOON.WRITE;
 		enablePacket[1] = CMD_MOON.UPDATE_EQ_COEFF;
@@ -1218,12 +1232,25 @@ function computeIIRFilter(type: string, freq: number, gain: number, q: number) {
 }
 
 /**
- * Moondrop DSP Math: coefficients encoding
+ * Moondrop sample rate table.
+ * Maps the CT7601 sampleRateIndex (as seen in Android logcat) to its Hz value.
+ * Index 8 (384000 Hz) is intentionally omitted — the CT7601 SDK itself fails
+ * to compute valid coefficients at 384 kHz (convertRes=1024, eqCoeff==null),
+ * as confirmed by the official Moondrop Android app logcat.
  */
-function encodeBiquadMoondrop(type: string, freq: number, gain: number, q: number) {
-	const fs = 48000;
-	const coeffs = computeBiquadCoeffs(type, freq, gain, q, fs);
-	const s = 1073741824;
+const MOONDROP_SAMPLE_RATES: ReadonlyArray<[number, number]> = [
+	[4, 44100],
+	[5, 48000],
+	[6, 96000],
+	[7, 192000],
+];
+
+/**
+ * Moondrop DSP Math: compute Q30 biquad coefficients for a specific sample rate.
+ */
+function encodeBiquadMoondropForRate(type: string, freq: number, gain: number, q: number, sampleRate: number) {
+	const coeffs = computeBiquadCoeffs(type, freq, gain, q, sampleRate);
+	const s = 1073741824; // Q30 = 2^30
 
 	return [
 		coeffs.b0,
