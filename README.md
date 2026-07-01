@@ -52,16 +52,17 @@ AuraPEQ features a multi-protocol hardware communication layer that automaticall
 | Protocol | Preamp Precision | Officially Supported DAC Models |
 | :--- | :--- | :--- |
 | **Savitech (Walkplay)** | 1.0 dB steps | Audiocular Aura (CB5100), Fosi Audio DS2, JCally JM20/JM20 Pro, TRN Black Pearl |
-| **Moondrop / Comtrue** | 0.1 dB steps | Moondrop Dawn Pro/Dawn Pro 2, FreeDSP, May, Tanchjim Space Lite |
+| **Moondrop / Comtrue** | 0.1 dB steps | Moondrop Dawn Pro/Dawn Pro 2, May, Tanchjim Space Lite |
+| **Conexant (Freeman)** | 0.1 dB steps | Moondrop FreeDSP (9-band configuration) |
 | **FiiO** | 0.1 dB steps | FiiO BTR17, KA17, KA15, KB1, etc. |
 | **FiiO JA11 (KT02H20)** | 0.1 dB steps | FiiO JadeAudio JA11 (5-band configuration) |
 
 > [!NOTE]
-> **Moondrop Protocol Notes:** Since Moondrop devices rely on host-side coefficient calculations, A/B comparison level-matching is bypassed automatically to prevent gain packet corruption. A/B comparison switches active slots normally.
+> **Moondrop / Conexant Protocol Notes:** Since Moondrop and Conexant devices rely on host-side coefficient calculations, A/B comparison level-matching is bypassed automatically to prevent gain packet corruption. A/B comparison switches active slots normally.
 >
 > **Dawn Pro 2 (VID `0x35D8`, PID `0x011D`):** All HID read/write operations (EQ bands, preamp gain, flash save) use Report ID `0x4B` — the same as Comtrue CT7601-based devices. The payload size must be restricted to exactly 63 bytes.
 >
-> **Free DSP (VID `0x35D8`, PID `0x1496`):** Also uses Report ID `0x4B` but requires a payload size of exactly 64 bytes due to its IN endpoint `wMaxPacketSize` being `0x40` (64 bytes). The application dynamically scales the packet size for these Moondrop devices to prevent the `"Failed to write the report."` error. Panning/balance is unaffected.
+> **FreeDSP (VID `0x35D8`, PID `0x1496`):** Powered by a Conexant (Freeman) DSP core. The application automatically renders a custom 9-band PEQ layout and communicates via Conexant's modular `Caf` package format. Coefficient updates are scaled using Q22 fixed-point math (`2^22`) and pushed to the DSP RAM (command `190`) for instant real-time tuning, or saved permanently to Flash (command `220` + commit sequence).
 
 ---
 
