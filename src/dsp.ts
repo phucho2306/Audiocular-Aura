@@ -29,26 +29,33 @@ import { delay, log, refreshStripUI, logTx, logRx, showSyncing, hideSyncing } fr
 import type { Band } from "./main.ts";
 import { t } from "./i18n.ts";
 
-// Moondrop devices use REPORT_ID_DEFAULT (0x4B) for all HID reports
-const REPORT_ID_MOON = REPORT_ID_DEFAULT;
+/**
+ * Get the correct HID Report ID for a Moondrop device.
+ *
+ * FreeDSP (PID 0x1496) HID descriptor (confirmed via navigator.hid):
+ *   outputReports[0].reportId = 1, reportCount = 61 bytes
+ * All other Moondrop/Comtrue devices: REPORT_ID_DEFAULT (0x4B)
+ */
+function getMoondropReportId(device: HIDDevice): number {
+	// FreeDSP (PID 0x1496) exposes output reports only on Report ID 1
+	if (device.productId === 0x1496) return 1;
+	// All other Moondrop/Comtrue devices
+	return REPORT_ID_DEFAULT;
+}
 
 /**
  * Get the correct HID packet size for a Moondrop device.
  * Different Moondrop devices use different packet sizes:
  * - Dawn Pro 2 (PID 0x011D): 63 bytes
- * - Free DSP (PID 0x1496): 64 bytes
+ * - Free DSP (PID 0x1496): 61 bytes (reportCount=61 from HID descriptor)
  * - Default: 63 bytes (safe fallback)
- * 
- * Note: Fixed Moondrop Free DSP (PID 0x1496) write failure:
- * Interface 3 (HID) has an IN endpoint with wMaxPacketSize = 0x40 (64 bytes).
- * Using 64 bytes instead of 63 bytes for PID 0x1496 prevents "Failed to write the report" error.
  */
 function getMoondropPacketSize(device: HIDDevice): number {
 	// Dawn Pro 2 (PID 0x011D) uses 63 bytes
 	if (device.productId === 0x011D) return 63;
 
-	// Free DSP (PID 0x1496) uses 64 bytes
-	if (device.productId === 0x1496) return 64;
+	// Free DSP (PID 0x1496): HID outputReport has reportCount=61
+	if (device.productId === 0x1496) return 61;
 
 	// Default for unknown Moondrop devices: 63 bytes (safe fallback)
 	return 63;
@@ -58,16 +65,18 @@ function getMoondropPacketSize(device: HIDDevice): number {
  * Send a report to a Moondrop device.
  * Attempts sendReport first, and falls back to sendFeatureReport if it fails.
  */
-async function sendMoondropReport(device: HIDDevice, reportId: number, packet: Uint8Array) {
+async function sendMoondropReport(device: HIDDevice, packet: Uint8Array) {
+	const reportId = getMoondropReportId(device);
+	logTx(reportId, packet);
 	try {
 		await device.sendReport(reportId, packet);
 	} catch (err) {
 		const errMsg = (err as Error).message || "";
-		console.warn(`[Moondrop TX] sendReport failed: ${errMsg}. Retrying via sendFeatureReport...`);
+		console.warn(`[Moondrop TX] sendReport(id=${reportId}) failed: ${errMsg}. Retrying via sendFeatureReport...`);
 		try {
 			await device.sendFeatureReport(reportId, packet);
 		} catch (featErr) {
-			console.error(`[Moondrop TX] sendFeatureReport also failed:`, featErr);
+			console.error(`[Moondrop TX] sendFeatureReport(id=${reportId}) also failed:`, featErr);
 			throw featErr;
 		}
 	}
@@ -296,7 +305,7 @@ async function readMoondropParams(device: HIDDevice): Promise<{ preamp: number; 
 	try {
 		const promise = waitForReport(device, CMD_MOON.READ, CMD_MOON.PRE_GAIN, undefined, 200);
 		console.debug("[Moondrop] Sending read preamp request:", gainPacket);
-		await sendMoondropReport(device, REPORT_ID_MOON, gainPacket);
+		await sendMoondropReport(device, gainPacket);
 		console.debug("[Moondrop] Read preamp request sent.");
 		const response = await promise;
 
@@ -324,7 +333,7 @@ async function readMoondropParams(device: HIDDevice): Promise<{ preamp: number; 
 
 		try {
 			const promise = waitForReport(device, CMD_MOON.READ, CMD_MOON.UPDATE_EQ, i, 200);
-			await sendMoondropReport(device, REPORT_ID_MOON, bandPacket);
+			await sendMoondropReport(device, bandPacket);
 			const response = await promise;
 
 			let freq = response[27] | (response[28] << 8);
@@ -836,7 +845,7 @@ export async function flashToFlash() {
 			const packet = new Uint8Array(getMoondropPacketSize(device));
 			packet[0] = CMD_MOON.WRITE;
 			packet[1] = CMD_MOON.SAVE_FLASH;
-			await sendMoondropReport(device, REPORT_ID_MOON, packet);
+			await sendMoondropReport(device, packet);
 		} else {
 			// Savitech Flash Save
 			await sendPacketSavitech(device, [
@@ -967,8 +976,7 @@ async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
 				`[Moondrop] Writing band ${band.index} @ ${sampleRate} Hz (idx ${sampleRateIdx}): ` +
 				`freq=${band.freq}, gain=${gain}, q=${band.q}`
 			);
-			logTx(REPORT_ID_MOON, packet);
-			await sendMoondropReport(device, REPORT_ID_MOON, packet);
+			await sendMoondropReport(device, packet);
 			await delay(10); // Small inter-rate delay to avoid USB buffer overrun
 		}
 
@@ -980,8 +988,7 @@ async function writeBandMoondrop(device: HIDDevice, band: Band, gain: number) {
 		enablePacket[4] = 255;
 		enablePacket[5] = 255;
 		enablePacket[6] = 255;
-		logTx(REPORT_ID_MOON, enablePacket);
-		await sendMoondropReport(device, REPORT_ID_MOON, enablePacket);
+		await sendMoondropReport(device, enablePacket);
 	} catch (err) {
 		console.error(`[Moondrop] Failed to write band ${band.index}:`, err);
 		log(`[Moondrop] Write band ${band.index} failed: ${(err as Error).message}`);
@@ -1002,8 +1009,7 @@ async function setGlobalGainMoondrop(device: HIDDevice, gain: number) {
 		packet[3] = val & 255;
 		packet[4] = (val >> 8) & 255;
 		console.debug(`[Moondrop] Writing global gain: ${gain} dB`);
-		logTx(REPORT_ID_MOON, packet);
-		await sendMoondropReport(device, REPORT_ID_MOON, packet);
+		await sendMoondropReport(device, packet);
 	} catch (err) {
 		console.error(`[Moondrop] Failed to write global gain:`, err);
 		log(`[Moondrop] Write global gain failed: ${(err as Error).message}`);
