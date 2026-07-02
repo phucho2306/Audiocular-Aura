@@ -887,8 +887,7 @@ export async function flashToFlash() {
 			const commitData = new Array(13).fill(0);
 			commitData[0] = -1; // -1 represents commit / save custom EQ option
 			const commitPacket = buildConexantPacket(220, commitData);
-			logTx(1, commitPacket);
-			await device.sendReport(1, commitPacket);
+			await sendConexantReport(device, commitPacket);
 			await delay(100);
 		} else {
 			// Savitech Flash Save
@@ -1132,6 +1131,27 @@ function buildConexantPacket(commandId: number, data: number[]): Uint8Array {
 }
 
 /**
+ * Send a report to a Conexant device.
+ * Attempts sendReport first, and falls back to sendFeatureReport if it fails.
+ */
+async function sendConexantReport(device: HIDDevice, packet: Uint8Array) {
+	const reportId = 1;
+	logTx(reportId, packet);
+	try {
+		await device.sendReport(reportId, packet);
+	} catch (err) {
+		const errMsg = (err as Error).message || "";
+		console.warn(`[Conexant TX] sendReport(id=${reportId}) failed: ${errMsg}. Retrying via sendFeatureReport...`);
+		try {
+			await device.sendFeatureReport(reportId, packet);
+		} catch (featErr) {
+			console.error(`[Conexant TX] sendFeatureReport(id=${reportId}) also failed:`, featErr);
+			throw featErr;
+		}
+	}
+}
+
+/**
  * Sets EQ Mode on Conexant. Index 0 is the custom/user EQ slot.
  */
 async function switchEQModeConexant(device: HIDDevice, index: number) {
@@ -1141,8 +1161,7 @@ async function switchEQModeConexant(device: HIDDevice, index: number) {
 		data[0] = 90;
 		data[1] = index;
 		const packet = buildConexantPacket(90, data);
-		logTx(1, packet);
-		await device.sendReport(1, packet);
+		await sendConexantReport(device, packet);
 		console.debug(`[Conexant] Switched EQ Mode to index: ${index}`);
 	} catch (err) {
 		console.error("[Conexant] Failed to switch EQ Mode:", err);
@@ -1181,8 +1200,7 @@ async function writeBandConexant(device: HIDDevice, band: Band, gain: number, fl
 			metadata[5] = Math.round(gain * 256);
 
 			const metaPacket = buildConexantPacket(220, metadata);
-			logTx(1, metaPacket);
-			await device.sendReport(1, metaPacket);
+			await sendConexantReport(device, metaPacket);
 			await delay(15);
 
 			// 2. Write coefficients for all 5 sample rates to Flash (command 220)
@@ -1199,8 +1217,7 @@ async function writeBandConexant(device: HIDDevice, band: Band, gain: number, fl
 				data[7] = q22Coeffs[4]; // A1 (-a2)
 
 				const coeffPacket = buildConexantPacket(220, data);
-				logTx(1, coeffPacket);
-				await device.sendReport(1, coeffPacket);
+				await sendConexantReport(device, coeffPacket);
 				await delay(15);
 			}
 		} else {
@@ -1221,8 +1238,7 @@ async function writeBandConexant(device: HIDDevice, band: Band, gain: number, fl
 				data[7] = q22Coeffs[4];
 
 				const ramPacket = buildConexantPacket(190, data);
-				logTx(1, ramPacket);
-				await device.sendReport(1, ramPacket);
+				await sendConexantReport(device, ramPacket);
 				await delay(15);
 			}
 		}
